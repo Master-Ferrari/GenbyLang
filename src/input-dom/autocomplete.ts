@@ -133,12 +133,12 @@ export function computeSuggestions(
     const e = config.enums.get(expectedEnum);
     if (e) {
       for (const v of e.values) {
-        if (startsWith(v, prefix)) {
+        if (startsWith(v.name, prefix)) {
           results.push({
-            label: v,
+            label: v.name,
             detail: `enum ${expectedEnum}`,
             kind: 'enum',
-            insertText: v,
+            insertText: v.name,
           });
         }
       }

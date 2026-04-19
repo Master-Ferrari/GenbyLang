@@ -15,12 +15,14 @@ export interface ArgSpec {
   enumKey?: string;
   optional?: boolean;
   rest?: boolean;
+  describe?: string;
 }
 
 export interface DirectiveSpec {
   name: string;
   args: ArgSpec[];
   required?: boolean;
+  describe?: string;
   handler: (args: Value[]) => void | Promise<void>;
 }
 
@@ -29,6 +31,7 @@ export interface FunctionSpec {
   args: ArgSpec[];
   returns: Type | 'VOID';
   returnsEnumKey?: string;
+  describe?: string;
   handler: (args: Value[]) => Value | Promise<Value>;
 }
 
@@ -36,6 +39,17 @@ export interface VariableSpec {
   name: string;
   type: Type;
   enumKey?: string;
+  describe?: string;
+}
+
+export interface EnumValueSpec {
+  name: string;
+  describe?: string;
+}
+
+export interface EnumSpec {
+  describe?: string;
+  values: EnumValueSpec[];
 }
 
 export type ErrorKind =

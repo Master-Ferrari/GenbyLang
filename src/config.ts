@@ -1,6 +1,7 @@
 import type {
   ArgSpec,
   DirectiveSpec,
+  EnumValueSpec,
   FunctionSpec,
   Type,
   VariableSpec,
@@ -8,7 +9,8 @@ import type {
 
 export interface EnumDef {
   key: string;
-  values: string[];
+  values: EnumValueSpec[];
+  describe?: string;
 }
 
 /** Snapshot of the language configuration used by parser/checker/interpreter. */

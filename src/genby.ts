@@ -2,11 +2,13 @@ import { lex } from './lexer.js';
 import { parse } from './parser.js';
 import { check } from './checker.js';
 import { runProgram, GenbyRuntimeError } from './interpreter.js';
-import type { LangConfig } from './config.js';
+import type { EnumDef, LangConfig } from './config.js';
 import { createInputDom, type GenbyInput } from './input-dom/index.js';
+import { generateMarkdownDocs, type DocsOptions } from './docs.js';
 import type {
   CheckResult,
   DirectiveSpec,
+  EnumValueSpec,
   FunctionSpec,
   GenbyError,
   Value,
@@ -18,11 +20,17 @@ export interface GenbyOptions {
   builtinIfThenElse?: boolean;
 }
 
+export interface AddEnumOptions {
+  describe?: string;
+}
+
+export type EnumValueInput = string | EnumValueSpec;
+
 export class Genby {
   private readonly directives = new Map<string, DirectiveSpec>();
   private readonly functions = new Map<string, FunctionSpec>();
   private readonly variables = new Map<string, VariableSpec>();
-  private readonly enums = new Map<string, { key: string; values: string[] }>();
+  private readonly enums = new Map<string, EnumDef>();
   private readonly enumValueIndex = new Map<string, string>();
   private readonly builtinIfThenElse: boolean;
 
@@ -58,25 +66,35 @@ export class Genby {
     return this;
   }
 
-  addEnum(enumKey: string, values: string[]): this {
+  addEnum(
+    enumKey: string,
+    values: EnumValueInput[],
+    options: AddEnumOptions = {},
+  ): this {
     if (this.enums.has(enumKey)) {
       throw new Error(`Enum '${enumKey}' is already registered`);
     }
     if (values.length === 0) {
       throw new Error(`Enum '${enumKey}' must have at least one value`);
     }
-    for (const v of values) {
-      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(v)) {
+    const normalized: EnumValueSpec[] = [];
+    for (const entry of values) {
+      const spec: EnumValueSpec =
+        typeof entry === 'string' ? { name: entry } : { ...entry };
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(spec.name)) {
         throw new Error(
-          `Enum '${enumKey}' value '${v}' is not a valid identifier`,
+          `Enum '${enumKey}' value '${spec.name}' is not a valid identifier`,
         );
       }
-      if (this.enumValueIndex.has(v)) {
-        throw new Error(`Enum value '${v}' is already registered`);
+      if (this.enumValueIndex.has(spec.name)) {
+        throw new Error(`Enum value '${spec.name}' is already registered`);
       }
-      this.enumValueIndex.set(v, enumKey);
+      this.enumValueIndex.set(spec.name, enumKey);
+      normalized.push(spec);
     }
-    this.enums.set(enumKey, { key: enumKey, values: [...values] });
+    const def: EnumDef = { key: enumKey, values: normalized };
+    if (options.describe !== undefined) def.describe = options.describe;
+    this.enums.set(enumKey, def);
     return this;
   }
 
@@ -154,6 +172,11 @@ export class LangMachine {
 
   inputDom(): GenbyInput {
     return createInputDom(this);
+  }
+
+  /** Generate a single-page Markdown reference for this language config. */
+  docs(options: DocsOptions = {}): string {
+    return generateMarkdownDocs(this, options);
   }
 
   /** Internal: re-run static analysis and return flat error list. */
