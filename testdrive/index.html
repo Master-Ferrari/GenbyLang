@@ -2,9 +2,31 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>genby · test drive</title>
+<title>genby</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
+    /* ==========================================================
+       tokens
+       ==========================================================
+       bg-app      #0b0c0e     page background
+       bg-panel    #111216     panel surface
+       bg-input    #0b0c10     input surface
+       bg-chrome   #12141a     card chrome / head bars
+       bg-btn      #171923     button surface
+       border      #272a30     panel border
+       border-in   #2b2f36     input border
+       border-hi   #3a3f48     hover border
+       accent      #f0a868     warm amber (primary accent)
+       accent-2    #c29bff     lavender (secondary accent)
+       accent-3    #7ee08c     mint (strings / ok)
+       text        #e5e7eb     primary text
+       text-soft   #c8cdd5     body text
+       text-muted  #9aa3af     labels / meta
+       text-dim    #6b7280     empty state
+       text-faint  #4b5563     footer hints
+       error       #ef4444
+       ========================================================== */
+
     *, *::before, *::after {
         box-sizing: border-box;
         margin: 0;
@@ -12,235 +34,754 @@
         outline: none;
     }
 
+    :root {
+        color-scheme: dark;
+
+        /* surfaces */
+        --bg-app: #0b0c0e;
+        --bg-panel: #111216;
+        --bg-input: #0b0c10;
+        --bg-chrome: #12141a;
+        --bg-btn: #12141a;
+        --bg-btn-hover: #1b1e28;
+        --bg-btn-primary: #1b1b1b;
+        --bg-btn-primary-hover: #242424;
+        --bg-pre: #08090c;
+        --bg-popup-selected: #1e2230;
+
+        /* borders */
+        --border: #272a30;
+        --border-in: #2b2f36;
+        --border-hi: #3a3f48;
+        --border-pre: #222529;
+
+        /* accents */
+        --accent: #e33183;
+        --accent-2: #8f67aa;
+        --accent-3: #00a09a;
+        --accent-ext-var: #8f67aa;
+
+        /* text */
+        --text: #e5e7eb;
+        --text-soft: #c8cdd5;
+        --text-muted: #9aa3af;
+        --text-dim: #6b7280;
+        --text-faint: #4b5563;
+        --text-white: #ffffff;
+
+        /* scrollbars */
+        --scroll-thumb: #656b76;
+        --scroll-thumb-hover: #7a818d;
+        --scroll-track: #111316;
+
+        /* state */
+        --error: #ef4444;
+
+        /* rgba tints */
+        --accent-a06: rgba(227, 49, 131, 0.06);
+        --accent-a08: rgba(227, 49, 131, 0.08);
+        --accent-a28: rgba(227, 49, 131, 0.28);
+        --accent-a30: rgba(227, 49, 131, 0.3);
+        --accent-a35: rgba(227, 49, 131, 0.35);
+        --accent-a60: rgba(227, 49, 131, 0.6);
+        --accent-2-a04: rgba(143, 103, 170, 0.04);
+        --accent-3-a08: rgba(0, 160, 154, 0.08);
+        --accent-3-a30: rgba(0, 160, 154, 0.3);
+        --error-a30: rgba(239, 68, 68, 0.3);
+    }
+
     html {
-        background: #0c0d0f;
+        background: var(--bg-app);
         scrollbar-width: thin;
-        scrollbar-color: #656b76 #0c0d0f;
+        scrollbar-color: var(--scroll-thumb) var(--bg-app);
     }
 
     body {
-        background: #0c0d0f;
-        color: #e5e7eb;
+        background:
+            radial-gradient(ellipse at 50% -20%, var(--accent-a06), transparent 60%),
+            radial-gradient(ellipse at 100% 110%, var(--accent-2-a04), transparent 60%),
+            var(--bg-app);
+        background-attachment: fixed;
+        color: var(--text);
         font-size: 14px;
-        font-family: ui-monospace, Menlo, Consolas, monospace;
-        padding: 24px;
+        font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+        padding: 32px 20px 40px;
         min-height: 100vh;
         user-select: none;
     }
 
     .page {
-        max-width: 720px;
+        max-width: 880px;
         margin: 0 auto;
         display: grid;
-        gap: 18px;
+        gap: 4px;
     }
 
-    .section-title {
-        font-size: 0.75rem;
-        color: #4b5563;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        padding: 4px 0 2px;
+    /* ---------- hero ---------- */
+    .hero {
+        padding: 12px 2px 18px;
+        border-bottom: 1px dashed var(--border);
+        margin-bottom: 18px;
     }
-
-    .panel {
-        border: 1px solid #272a30;
-        background: #111216;
-        padding: 8px;
-        border-radius: 8px;
-        display: grid;
-        gap: 8px;
-    }
-
-    .input-label {
-        font-size: 0.9rem;
-        color: #9aa3af;
-    }
-
-    .load-btn {
-        padding: 6px 10px;
-        border: 1px solid #2b2f36;
-        border-radius: 6px;
-        background: #171923;
-        color: #e5e7eb;
-        cursor: pointer;
-        font-size: 0.9rem;
+    .hero-brand {
+        display: flex;
+        align-items: flex-end;
+        gap: 12px;
         line-height: 1;
-        font-family: inherit;
     }
-    .load-btn:hover { filter: brightness(1.06); }
-    .load-btn:active { filter: brightness(0.98); }
-    .load-btn:disabled { opacity: 0.5; cursor: default; }
-
-    .json {
-        padding: 8px;
-        border: 1px solid #2b2f36;
+    .install-btn {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border: 1px solid var(--border-in);
         border-radius: 6px;
-        background: #0b0c10;
-        color: #e5e7eb;
-        font-family: ui-monospace, Menlo, Consolas, monospace;
+        background: var(--bg-btn);
+        color: var(--text);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.82rem;
+        line-height: 1;
+    }
+    .install-btn:hover { border-color: var(--border-hi); background: var(--bg-btn-hover); }
+    .install-btn:active { filter: brightness(0.95); }
+    .install-btn .install-prompt { color: var(--accent); }
+    .install-btn .install-cmd { color: var(--text); }
+    .install-btn .install-label {
+        color: var(--text-dim);
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        /* text-transform: uppercase; */
+        padding-left: 8px;
+        width: 50px;
+        border-left: 1px solid var(--border-in);
+    }
+    .install-btn.copied .install-label { color: var(--accent-3); }
+    .hero-name {
+        font-size: 2.6rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: var(--text);
+    }
+    .hero-name .lang { color: var(--accent); font-style: italic; }
+    .hero-version {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        padding-bottom: 6px;
+    }
+    .hero-tagline {
+        margin-top: 10px;
+        color: var(--text-muted);
+        font-size: 0.95rem;
+    }
+    .hero-tagline .c { color: var(--text-dim); }
+    .hero-meta {
+        margin-top: 16px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 0.78rem;
+        color: var(--text-dim);
+        flex-wrap: wrap;
+    }
+    .hero-meta .sep {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--border-in);
+    }
+    .hero-meta .key { color: var(--text-muted); }
+    .hero-meta .val { color: var(--accent); }
+
+    /* ---------- step (numbered rail) ---------- */
+    .step {
+        display: grid;
+        grid-template-columns: 52px 1fr;
+        gap: 0;
+    }
+    .step-rail {
+        border-right: 1px solid var(--border);
+        padding: 10px 14px 22px 0;
+        text-align: right;
+        color: var(--text-faint);
+        font-size: 0.75rem;
+        letter-spacing: 0.12em;
+    }
+    .step-num {
+        display: block;
+        font-size: 1rem;
+        color: var(--accent);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        margin-bottom: 4px;
+    }
+    .step-tag {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        margin-top: 10px;
+        color: var(--border-hi);
+        font-size: 0.65rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+    }
+    .step-body {
+        padding: 6px 0 22px 20px;
+        display: grid;
+        gap: 12px;
+    }
+    .step-header {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+    }
+    .step-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text);
+        letter-spacing: -0.005em;
+    }
+    .step-rule {
+        flex: 1;
+        height: 1px;
+        border-bottom: 1px dashed var(--border-in);
+        transform: translateY(-4px);
+    }
+    .step-desc {
+        color: var(--text-muted);
+        font-size: 0.82rem;
+        margin-top: -4px;
+        line-height: 1.5;
+    }
+    .step-desc code {
+        color: var(--accent);
+        background: var(--accent-a08);
+        padding: 0 4px;
+        border-radius: 3px;
+        font-size: 0.78rem;
+    }
+
+    /* ---------- code card (filename chrome) ---------- */
+    .card {
+        border: 1px solid var(--border-in);
+        border-radius: 8px;
+        background: var(--bg-input);
+        overflow: hidden;
+    }
+    .card-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 12px;
+        border-bottom: 1px solid var(--border-in);
+        background: var(--bg-chrome);
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        color: var(--text-muted);
+    }
+    .card-head .bullets span {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: var(--border-in);
+    }
+    .card-head .filename {
+        flex: 1;
+        color: var(--text-muted);
+    }
+    .card-head .filename .ext { color: var(--accent); }
+    .card-head .right {
+        color: var(--text-faint);
+        font-size: 0.68rem;
+        letter-spacing: 0.1em;
+    }
+
+    /* ---------- code editor (overlay highlight) ---------- */
+    .code-edit {
+        position: relative;
+        background: var(--bg-input);
+    }
+    .code-highlight, .code-input {
+        margin: 0;
+        padding: 12px 14px;
+        font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
         font-size: 12.5px;
-        line-height: 1.4;
-        min-height: 120px;
-        resize: vertical;
+        line-height: 1.6;
         white-space: pre;
+        tab-size: 2;
+        box-sizing: border-box;
+    }
+    .code-highlight {
+        position: absolute;
+        inset: 0;
+        color: var(--text);
+        pointer-events: none;
+        overflow: hidden;
+        z-index: 1;
+    }
+    .code-input {
+        position: relative;
+        display: block;
+        width: 100%;
+        min-height: 240px;
+        border: none;
+        background: transparent;
+        color: transparent;
+        caret-color: var(--accent);
+        resize: vertical;
+        z-index: 2;
         overflow: auto;
         user-select: text;
         scrollbar-width: thin;
-        scrollbar-color: #656b76 #111316;
-        width: 100%;
+        scrollbar-color: var(--scroll-thumb) var(--scroll-track);
     }
-    .json::selection { background: #ffffff; color: #000000; }
-    .json:focus { border-color: #2b2f36; }
-    .json::-webkit-scrollbar { width: 10px; height: 10px; }
-    .json::-webkit-scrollbar-track { background: #111316; border-radius: 8px; }
-    .json::-webkit-scrollbar-thumb {
-        background: #656b76;
+    .code-input::selection { background: var(--accent-a28); color: transparent; }
+    .code-input::-webkit-scrollbar { width: 10px; height: 10px; }
+    .code-input::-webkit-scrollbar-track { background: var(--scroll-track); }
+    .code-input::-webkit-scrollbar-thumb {
+        background: var(--scroll-thumb);
         border-radius: 8px;
-        border: 2px solid #111316;
+        border: 2px solid var(--scroll-track);
     }
-    .json::-webkit-scrollbar-thumb:hover { background: #7a818d; }
+    .code-input::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
 
-    .error {
-        color: #ef4444;
-        font-size: 0.875rem;
-        user-select: text;
-        white-space: pre-wrap;
+    /* ---------- js tokens ---------- */
+    .tok-comment { color: var(--text-dim); font-style: italic; }
+    .tok-string  { color: var(--accent-3); }
+    .tok-number  { color: var(--accent); }
+    .tok-keyword { color: var(--accent-2); }
+    .tok-cap     { color: var(--accent); }
+    .tok-ident   { color: var(--text); }
+    .tok-op      { color: var(--text-muted); }
+    .tok-punct   { color: var(--text-dim); }
+
+    /* ---------- buttons ---------- */
+    .btn-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
     }
-    .success {
-        color: #10b981;
-        font-size: 0.875rem;
-        user-select: text;
-        white-space: pre-wrap;
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border: 1px solid var(--border-in);
+        border-radius: 6px;
+        background: var(--bg-btn);
+        color: var(--text);
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-family: inherit;
+        line-height: 1;
     }
-    .empty {
-        font-size: 0.8rem;
-        color: #6b7280;
+    .btn:hover { border-color: var(--border-hi); background: var(--bg-btn-hover); }
+    .btn:active { filter: brightness(0.95); }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+    .btn .caret { color: var(--accent); font-weight: 600; }
+    .btn-primary {
+        border-color: var(--accent-a35);
+        background: var(--bg-btn-primary);
+        color: var(--accent);
+    }
+    .btn-primary:hover {
+        border-color: var(--accent-a60);
+        background: var(--bg-btn-primary-hover);
     }
 
+    /* ---------- status badge ---------- */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 3px 10px;
+        border: 1px solid var(--border-in);
+        border-radius: 999px;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        background: var(--bg-panel);
+        font-family: inherit;
+        line-height: 1.3;
+        user-select: text;
+    }
+    .badge::before {
+        content: "";
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--scroll-thumb);
+    }
+    .badge.ok     { color: var(--accent-3); border-color: var(--accent-3-a30); }
+    .badge.ok::before    { background: var(--accent-3); }
+    .badge.err    { color: var(--error); border-color: var(--error-a30); }
+    .badge.err::before   { background: var(--error); }
+    .badge.run    { color: var(--accent); border-color: var(--accent-a30); }
+    .badge.run::before   { background: var(--accent); animation: pulse 1s infinite; }
+    .badge-msg {
+        color: var(--text-muted);
+        font-size: 0.78rem;
+        white-space: pre-wrap;
+        user-select: text;
+    }
+    @keyframes pulse { 50% { opacity: 0.35; } }
+
+    /* ---------- docs (collapsible) ---------- */
+    .docs-details { display: grid; gap: 10px; }
     .docs-details > summary {
         cursor: pointer;
         list-style: none;
-        color: #9aa3af;
-        font-size: 0.9rem;
-        padding: 2px 0;
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        padding: 4px 10px;
+        border: 1px solid var(--border-in);
+        border-radius: 6px;
+        background: var(--bg-chrome);
+        user-select: none;
+        width: fit-content;
     }
+    .docs-details > summary:hover { border-color: var(--border-hi); color: var(--text); }
     .docs-details > summary::-webkit-details-marker { display: none; }
     .docs-details > summary::before {
         content: "▸";
-        color: #9aa3af;
-        font-size: 10px;
+        color: var(--accent);
+        font-size: 19px;
         transition: transform 0.15s;
     }
     .docs-details[open] > summary::before { transform: rotate(90deg); }
-    .docs-body {
-        margin-top: 8px;
-        padding: 8px;
-        border: 1px solid #2b2f36;
-        border-radius: 6px;
-        background: #0b0c10;
-        color: #e5e7eb;
-        font-family: ui-monospace, Menlo, Consolas, monospace;
+    .docs-details[open] > summary { border-color: var(--border-hi); color: var(--text); }
+    .docs-details > summary .count {
+        color: var(--text-dim);
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+    }
+
+    /* ---------- markdown rendering ---------- */
+    .md-render {
+        padding: 14px 18px 18px;
+        font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
         font-size: 12.5px;
-        line-height: 1.5;
-        white-space: pre-wrap;
-        max-height: 420px;
+        line-height: 1.65;
+        color: var(--text-soft);
+        max-height: 440px;
         overflow: auto;
         user-select: text;
         scrollbar-width: thin;
-        scrollbar-color: #656b76 #111316;
+        scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+    }
+    .md-render::-webkit-scrollbar { width: 10px; }
+    .md-render::-webkit-scrollbar-track { background: var(--scroll-track); }
+    .md-render::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 8px; border: 2px solid var(--scroll-track); }
+    .md-render > :first-child { margin-top: 0; }
+    .md-render h1, .md-render h2, .md-render h3, .md-render h4 {
+        font-weight: 600;
+        color: var(--text);
+        margin: 16px 0 6px;
+    }
+    .md-render h1 { font-size: 1.15rem; color: var(--accent); margin-top: 0; }
+    .md-render h1::before { content: "# "; color: var(--text-faint); font-weight: 400; }
+    .md-render h2 {
+        font-size: 1rem;
+        border-bottom: 1px dashed var(--border);
+        padding-bottom: 4px;
+        margin-top: 18px;
+    }
+    .md-render h2::before { content: "## "; color: var(--text-faint); font-weight: 400; }
+    .md-render h3 { font-size: 0.95rem; color: var(--accent-2); }
+    .md-render h3::before { content: "### "; color: var(--text-faint); font-weight: 400; }
+    .md-render h4 { font-size: 0.88rem; color: var(--text-muted); }
+    .md-render p { margin: 6px 0; }
+    .md-render ul { margin: 6px 0 6px 4px; padding-left: 0; list-style: none; }
+    .md-render li { margin: 3px 0; padding-left: 16px; position: relative; }
+    .md-render li::before {
+        content: "·";
+        position: absolute;
+        left: 4px;
+        color: var(--accent);
+    }
+    .md-render code {
+        color: var(--accent-3);
+        background: var(--accent-3-a08);
+        padding: 0 5px;
+        border-radius: 3px;
+        font-size: 0.92em;
+    }
+    .md-render pre {
+        background: var(--bg-pre);
+        border: 1px solid var(--border-pre);
+        border-radius: 4px;
+        padding: 10px 12px;
+        overflow: auto;
+        margin: 8px 0;
+        color: var(--text);
+        scrollbar-width: thin;
+        scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+    }
+    .md-render pre code {
+        background: none;
+        padding: 0;
+        color: var(--text);
+    }
+    .md-render table {
+        border-collapse: collapse;
+        margin: 10px 0;
+        font-size: 0.85rem;
+        width: 100%;
+    }
+    .md-render th, .md-render td {
+        border: 1px solid var(--border-in);
+        padding: 5px 10px;
+        text-align: left;
+        vertical-align: top;
+    }
+    .md-render th {
+        background: var(--bg-chrome);
+        color: var(--accent);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
+    .md-render strong { color: var(--text); font-weight: 600; }
+    .md-render em { color: var(--accent-2); font-style: normal; }
+    .md-placeholder {
+        padding: 18px;
+        color: var(--text-dim);
+        font-size: 0.85rem;
     }
 
+    /* ---------- genby input host (dark theme vars) ---------- */
     .genby-host {
-        --genby-font-family: ui-monospace, Menlo, Consolas, monospace;
+        --genby-font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
         --genby-font-size: 13px;
-        --genby-color: #e5e7eb;
-        --genby-bg: #0b0c10;
-        --genby-border-color: #2b2f36;
-        --genby-radius: 6px;
-        --genby-min-height: 8em;
-        --genby-caret: #e5e7eb;
-        --genby-selection: rgba(255, 255, 255, 0.25);
-        --genby-popup-bg: #0b0c10;
-        --genby-popup-border: #2b2f36;
-        --genby-popup-selected-bg: #1e2230;
-        --genby-popup-selected-color: #ffffff;
-        --genby-color-string: #a5d6ff;
-        --genby-color-number: #ff966b;
-        --genby-color-comment: #6b7280;
-        --genby-color-directive: #c29bff;
-        --genby-color-function: #f0a868;
-        --genby-color-enum: #7ee08c;
-        --genby-color-ext-var: #b39bff;
-        --genby-color-local-var: #e5e7eb;
-        --genby-color-ident: #e5e7eb;
-        --genby-color-op: #9aa3af;
-        --genby-color-punct: #9aa3af;
-        --genby-color-interp: #c29bff;
-        --genby-error-color: #ef4444;
+        --genby-line-height: 1.6;
+        --genby-color: var(--text);
+        --genby-bg: var(--bg-input);
+        --genby-border-color: transparent;
+        --genby-radius: 0;
+        --genby-min-height: 9em;
+        --genby-caret: var(--accent);
+        --genby-selection: var(--accent-a28);
+        --genby-popup-bg: var(--bg-chrome);
+        --genby-popup-border: var(--border-in);
+        --genby-popup-selected-bg: var(--bg-popup-selected);
+        --genby-popup-selected-color: var(--text-white);
+        --genby-color-string: var(--accent-3);
+        --genby-color-number: var(--accent);
+        --genby-color-comment: var(--text-dim);
+        --genby-color-directive: var(--accent-2);
+        --genby-color-function: var(--accent);
+        --genby-color-enum: var(--accent-3);
+        --genby-color-ext-var: var(--accent-ext-var);
+        --genby-color-local-var: var(--text);
+        --genby-color-ident: var(--text);
+        --genby-color-op: var(--text-muted);
+        --genby-color-punct: var(--text-dim);
+        --genby-color-interp: var(--accent-2);
+        --genby-error-color: var(--error);
     }
     .genby-host .genby-input { user-select: text; }
+    .card .genby-host .genby-input { border: none; border-radius: 0; }
 
+    /* ---------- run output ---------- */
     .output-pre {
-        padding: 8px;
-        border: 1px solid #2b2f36;
-        border-radius: 6px;
-        background: #0b0c10;
-        color: #e5e7eb;
-        font-family: ui-monospace, Menlo, Consolas, monospace;
+        padding: 12px 14px;
+        font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
         font-size: 12.5px;
-        line-height: 1.4;
+        line-height: 1.55;
         white-space: pre-wrap;
         user-select: text;
-        min-height: 40px;
+        min-height: 54px;
+        color: var(--text);
+    }
+    .output-pre.empty { color: var(--text-dim); }
+    .status-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
     }
 
-    .hint {
-        font-size: 0.75rem;
-        color: #4b5563;
-        padding: 4px 0;
+    /* ---------- footer ---------- */
+    .footer {
+        margin-top: 24px;
+        padding: 16px 0 4px;
+        border-top: 1px dashed var(--border);
+        display: flex;
+        justify-content: space-between;
+        color: var(--text-faint);
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
     }
+    .footer .left { color: var(--text-dim); }
+    .footer .left .sep { color: var(--border-in); padding: 0 6px; }
+    .footer .right { color: var(--text-faint); }
 </style>
 </head>
 <body>
 
 <div class="page">
 
-    <div class="section-title">language config</div>
-    <div class="panel">
-        <span class="input-label">js declaring functions on a <code>Genby</code> instance. return it at the end.</span>
-        <textarea class="json" id="configInput" spellcheck="false"></textarea>
-        <button class="load-btn" id="makeBtn" type="button">make genby !</button>
-        <div id="configStatus" class="empty">not built yet</div>
+    <!-- hero -->
+    <div class="hero">
+        <div class="hero-brand">
+            <div class="hero-name">genby<span class="lang">lang</span></div>
+            <div class="hero-version">v1.0.0</div>
+            <button class="install-btn" id="installBtn" type="button" title="click to copy">
+                <span class="install-prompt">$</span>
+                <span class="install-cmd">npm i genby</span>
+                <span class="install-label" id="installLabel">copy</span>
+            </button>
+        </div>
+        <div class="hero-tagline">
+            <span class="c">//</span> embeddable scripting language for building strings.
+        </div>
+        <!-- <div class="hero-meta">
+            <span><span class="key">mode</span> <span class="val">test drive</span></span>
+            <span class="sep"></span>
+            <span><span class="key">runtime</span> <span class="val">browser</span></span>
+            <span class="sep"></span>
+            <span><span class="key">license</span> <span class="val">mit</span></span>
+        </div> -->
     </div>
 
-    <div class="section-title">generated docs</div>
-    <div class="panel">
-        <details class="docs-details" id="docsDetails">
-            <summary>show docs</summary>
-            <pre class="docs-body" id="docsBody">build the language first</pre>
-        </details>
-    </div>
+    <!-- 01 · language config -->
+    <div class="step">
+        <div class="step-rail">
+            <span class="step-num">01</span>
+            <span class="step-tag">config</span>
+        </div>
+        <div class="step-body">
+            <div class="step-header">
+                <div class="step-title">language config</div>
+                <div class="step-rule"></div>
+            </div>
+            <div class="step-desc">
+                declare functions, variables, enums, and directives on a <code>Genby</code> instance.
+                <code>IF_THEN_ELSE</code> is a built-in special form. return the instance at the end.
+            </div>
 
-    <div class="section-title">genby program</div>
-    <div class="panel">
-        <span class="input-label">program input</span>
-        <div class="genby-host" id="genbyHost">
-            <div class="empty" style="padding: 8px;">build the language first</div>
+            <div class="card">
+                <div class="card-head">
+                    <div class="filename">config<span class="ext">.js</span></div>
+                    <div class="right">editable</div>
+                </div>
+                <div class="code-edit" id="configEdit">
+                    <pre class="code-highlight" aria-hidden="true"><code id="configHighlight"></code></pre>
+                    <textarea id="configInput" class="code-input" spellcheck="false"
+                              autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-primary" id="makeBtn" type="button">
+                    <span class="caret">&gt;</span> make genby !
+                </button>
+                <span class="badge" id="configBadge">idle</span>
+                <span class="badge-msg" id="configMsg"></span>
+            </div>
         </div>
     </div>
 
-    <div class="section-title">run</div>
-    <div class="panel">
-        <button class="load-btn" id="runBtn" type="button" disabled>run</button>
-        <div id="runStatus" class="empty">idle</div>
-        <pre class="output-pre" id="runOutput"></pre>
+    <!-- 02 · generated docs -->
+    <div class="step">
+        <div class="step-rail">
+            <span class="step-num">02</span>
+            <span class="step-tag">docs</span>
+        </div>
+        <div class="step-body">
+            <div class="step-header">
+                <div class="step-title">generated docs</div>
+                <div class="step-rule"></div>
+            </div>
+            <div class="step-desc">
+                a full markdown reference is produced from your language config via <code>machine.docs()</code>.
+            </div>
+
+            <details class="docs-details" id="docsDetails">
+                <summary>
+                    <span>show reference</span>
+                    <span class="count" id="docsCount"></span>
+                </summary>
+                <div class="card" id="docsCard">
+                    <div class="card-head">
+                        <div class="filename">reference<span class="ext">.md</span></div>
+                        <div class="right">rendered</div>
+                    </div>
+                    <div class="md-render" id="docsBody">
+                        <div class="md-placeholder">build the language first</div>
+                    </div>
+                </div>
+            </details>
+        </div>
     </div>
 
-    <div class="hint">tip: edit the config, hit make genby, then write and run a program.</div>
+    <!-- 03 · program -->
+    <div class="step">
+        <div class="step-rail">
+            <span class="step-num">03</span>
+            <span class="step-tag">program</span>
+        </div>
+        <div class="step-body">
+            <div class="step-header">
+                <div class="step-title">genby program</div>
+                <div class="step-rule"></div>
+            </div>
+            <div class="step-desc">
+                write a program in the language you just declared. syntax highlighting and completions come from <code>machine.inputDom()</code>.
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <div class="bullets"><span></span><span></span><span></span></div>
+                    <div class="filename">program<span class="ext">.genby</span></div>
+                    <div class="right" id="programRight">waiting</div>
+                </div>
+                <div class="genby-host" id="genbyHost">
+                    <div class="md-placeholder">build the language first</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 04 · run -->
+    <div class="step">
+        <div class="step-rail">
+            <span class="step-num">04</span>
+            <span class="step-tag">run</span>
+        </div>
+        <div class="step-body">
+            <div class="step-header">
+                <div class="step-title">run</div>
+                <div class="step-rule"></div>
+            </div>
+            <div class="step-desc">
+                executes the program against your configured handlers. the return value is rendered below.
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-primary" id="runBtn" type="button" disabled>
+                    <span class="caret">&gt;</span> run
+                </button>
+                <span class="badge" id="runBadge">idle</span>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <div class="filename">result<span class="ext">.txt</span></div>
+                    <div class="right" id="runRight">—</div>
+                </div>
+                <pre class="output-pre empty" id="runOutput">no output yet</pre>
+            </div>
+            <div class="badge-msg" id="runMsg"></div>
+        </div>
+    </div>
+
+    <div class="footer"> 
+         <!-- TODO ссылку на гитхаб и телегу вместо всего-всего -->
+        <div class="left">
+            <span>made by master-ferrari</span><span class="sep">
+        </div>
+        <div class="right"><a href="https://t.me/svastic_fantastic" target="_blank" style="color: var(--text-faint); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">t.me/svastic_fantastic</a></div>
+    </div>
 </div>
 
 <script type="module" src="./main.js"></script>

@@ -22,7 +22,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rimraf dist",
-    "testdrive": "npm run build && node scripts/serve-testdrive.mjs"
+    "testdrive": "npm run build && node scripts/serve-testdrive.mjs",
+    "release": "npm run build && npm publish"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
