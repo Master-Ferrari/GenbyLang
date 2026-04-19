@@ -49,7 +49,6 @@ describe('docs generator', () => {
     const md = makeRichMachine().docs();
     expect(md).toMatch(/^# Language reference/);
     expect(md).toContain('## Basic syntax');
-    expect(md).toContain('IF_THEN_ELSE');
     expect(md).toContain('RETURN');
     expect(md).toContain('## Directives');
     expect(md).toContain('`@NAME`');
@@ -86,12 +85,6 @@ describe('docs generator', () => {
     expect(md).not.toMatch(/^## Functions$/m);
     expect(md).not.toMatch(/^## Variables$/m);
     expect(md).not.toMatch(/^## Enums$/m);
-  });
-
-  it('skips IF_THEN_ELSE section when disabled', () => {
-    const g = new Genby({ builtinIfThenElse: false });
-    const md = g.build().docs();
-    expect(md).not.toContain('IF_THEN_ELSE');
   });
 
   it('renders variadic and optional args correctly', () => {

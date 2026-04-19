@@ -1,6 +1,5 @@
 export { Genby, LangMachine } from './genby.js';
 export type {
-  GenbyOptions,
   AddEnumOptions,
   EnumValueInput,
 } from './genby.js';

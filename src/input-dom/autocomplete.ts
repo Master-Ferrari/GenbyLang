@@ -158,14 +158,6 @@ export function computeSuggestions(
       });
     }
   }
-  if (config.builtinIfThenElse && startsWith('IF_THEN_ELSE', prefix)) {
-    results.push({
-      label: 'IF_THEN_ELSE',
-      detail: 'built-in',
-      kind: 'function',
-      insertText: 'IF_THEN_ELSE(',
-    });
-  }
   if (startsWith('RETURN', prefix)) {
     results.push({
       label: 'RETURN',

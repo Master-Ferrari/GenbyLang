@@ -13,7 +13,6 @@ import {
 
 const DEFAULT_CONFIG = `// declare your language here.
 // scope: Genby, STR, NUM, BUL, ENUM, makeEnumValue.
-// IF_THEN_ELSE is a built-in special form.
 // return the configured Genby instance.
 
 const g = new Genby();
@@ -24,6 +23,17 @@ g.addFunction({
     args: [{ name: 'text', type: STR, describe: 'text to process' }],
     returns: STR,
     handler: async ([text]) => String(text ?? '').trim().toUpperCase(),
+});
+
+g.addFunction({
+  name: 'IF_THEN_ELSE',
+  args: [
+    { name: 'cond', type: BUL },
+    { name: 'a', type: STR },
+    { name: 'b', type: STR },
+  ],
+  returns: STR,
+  handler: ([c, a, b]) => (c ? a : b),
 });
 
 return g;
@@ -74,7 +84,7 @@ if (installBtn && installLabel) {
             ta.style.opacity = '0';
             document.body.appendChild(ta);
             ta.select();
-            try { document.execCommand('copy'); } catch {}
+            try { document.execCommand('copy'); } catch { }
             document.body.removeChild(ta);
         }
         installBtn.classList.add('copied');
@@ -92,24 +102,24 @@ if (installBtn && installLabel) {
 // -----------------------------------------------------------------
 
 const JS_KEYWORDS = new Set([
-    'const','let','var','function','return','if','else','for','while','do',
-    'switch','case','break','continue','new','async','await','true','false',
-    'null','undefined','try','catch','finally','throw','this','typeof',
-    'instanceof','of','in','import','export','from','default','class',
-    'extends','static','void','yield',
+    'const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'do',
+    'switch', 'case', 'break', 'continue', 'new', 'async', 'await', 'true', 'false',
+    'null', 'undefined', 'try', 'catch', 'finally', 'throw', 'this', 'typeof',
+    'instanceof', 'of', 'in', 'import', 'export', 'from', 'default', 'class',
+    'extends', 'static', 'void', 'yield',
 ]);
 
 const JS_RULES = [
     { cls: 'comment', re: /^\/\/[^\n]*/ },
     { cls: 'comment', re: /^\/\*[\s\S]*?\*\// },
-    { cls: 'string',  re: /^"(?:[^"\\\n]|\\.)*"/ },
-    { cls: 'string',  re: /^'(?:[^'\\\n]|\\.)*'/ },
-    { cls: 'string',  re: /^`(?:[^`\\]|\\[\s\S])*`/ },
-    { cls: 'number',  re: /^(?:0x[0-9a-fA-F]+|\d+\.?\d*)/ },
-    { cls: 'ident',   re: /^[A-Za-z_$][\w$]*/ },
-    { cls: 'op',      re: /^(?:=>|===|!==|==|!=|<=|>=|\+\+|--|&&|\|\||\+|-|\*|\/|%|=|<|>|!|&|\||\^|~|\?|:)/ },
-    { cls: 'punct',   re: /^[{}()\[\].,;]/ },
-    { cls: 'space',   re: /^\s+/ },
+    { cls: 'string', re: /^"(?:[^"\\\n]|\\.)*"/ },
+    { cls: 'string', re: /^'(?:[^'\\\n]|\\.)*'/ },
+    { cls: 'string', re: /^`(?:[^`\\]|\\[\s\S])*`/ },
+    { cls: 'number', re: /^(?:0x[0-9a-fA-F]+|\d+\.?\d*)/ },
+    { cls: 'ident', re: /^[A-Za-z_$][\w$]*/ },
+    { cls: 'op', re: /^(?:=>|===|!==|==|!=|<=|>=|\+\+|--|&&|\|\||\+|-|\*|\/|%|=|<|>|!|&|\||\^|~|\?|:)/ },
+    { cls: 'punct', re: /^[{}()\[\].,;]/ },
+    { cls: 'space', re: /^\s+/ },
 ];
 
 function escapeHtml(s) {
@@ -342,10 +352,10 @@ function buildMachine() {
 function summarizeMachine(machine) {
     const c = machine.config;
     const parts = [];
-    if (c.functions.size)  parts.push(`${c.functions.size} fn`);
+    if (c.functions.size) parts.push(`${c.functions.size} fn`);
     if (c.directives.size) parts.push(`${c.directives.size} directive${c.directives.size === 1 ? '' : 's'}`);
-    if (c.variables.size)  parts.push(`${c.variables.size} var${c.variables.size === 1 ? '' : 's'}`);
-    if (c.enums.size)      parts.push(`${c.enums.size} enum${c.enums.size === 1 ? '' : 's'}`);
+    if (c.variables.size) parts.push(`${c.variables.size} var${c.variables.size === 1 ? '' : 's'}`);
+    if (c.enums.size) parts.push(`${c.enums.size} enum${c.enums.size === 1 ? '' : 's'}`);
     const summary = parts.length ? parts.join(' · ') : 'empty language';
     return { summary, total: c.functions.size + c.directives.size + c.variables.size + c.enums.size };
 }

@@ -21,11 +21,8 @@ export interface LangConfig {
   enums: Map<string, EnumDef>;
   /** enumValueName -> enumKey. Used for identifier resolution and reserved-name checks. */
   enumValueIndex: Map<string, string>;
-  /** Whether IF_THEN_ELSE is treated as a built-in special form. */
-  builtinIfThenElse: boolean;
 }
 
-export const IF_THEN_ELSE = 'IF_THEN_ELSE';
 export const RETURN = 'RETURN';
 
 export type IdentResolution =
@@ -38,7 +35,6 @@ export type IdentResolution =
 
 export function isReservedName(config: LangConfig, name: string): boolean {
   if (name === RETURN) return true;
-  if (config.builtinIfThenElse && name === IF_THEN_ELSE) return true;
   if (config.functions.has(name)) return true;
   if (config.directives.has(name)) return true;
   if (config.variables.has(name)) return true;

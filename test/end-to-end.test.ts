@@ -58,17 +58,12 @@ describe('end-to-end', () => {
     const source = `@HOTKEY(CTRL, SHIFT, F2)
 @NAME("Translate selection")
 
-warnLimit = 3000
 inputLen = LEN(INPUTTEXT)
-isLong = inputLen > warnLimit
 
-languageNote = IF_THEN_ELSE(LANG1 == auto, "", " from {LANG1}")
+languageNote = " from {LANG1}"
+prompt = "Translate{languageNote} to {LANG2}. ({inputLen} chars)"
 
-lengthNote = IF_THEN_ELSE(isLong, " long ({inputLen} chars)", "")
-
-prompt = "Translate{languageNote} to {LANG2}.{lengthNote}"
-
-model = IF_THEN_ELSE(inputLen < 300, HAIKU_45, SONNET_46)
+model = HAIKU_45
 LOG("run", model)
 out = LLM(model, prompt)
 RETURN(out)
@@ -119,33 +114,6 @@ RETURN(out)
     await expect(
       m.execute('x = 1 / 0\nRETURN(x)', { INPUTTEXT: '', LANG1: { __enum: true, enumKey: 'LANGUAGE', name: 'en' }, LANG2: { __enum: true, enumKey: 'LANGUAGE', name: 'ru' } }),
     ).rejects.toThrow(/Division/);
-  });
-
-  it('IF_THEN_ELSE is lazy', async () => {
-    const g = new Genby();
-    let calls = 0;
-    g.addFunction({
-      name: 'BOOM',
-      args: [],
-      returns: STR,
-      handler: () => {
-        calls += 1;
-        throw new Error('should not be called');
-      },
-    });
-    g.addFunction({
-      name: 'OK',
-      args: [],
-      returns: STR,
-      handler: () => 'ok',
-    });
-    const m = g.build();
-    const result = await m.execute(
-      'x = IF_THEN_ELSE(1 < 2, OK(), BOOM())\nRETURN(x)',
-      {},
-    );
-    expect(result).toBe('ok');
-    expect(calls).toBe(0);
   });
 
   it('number interpolation renders as text', async () => {

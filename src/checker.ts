@@ -11,7 +11,6 @@ import type {
 import type { ArgSpec, GenbyError, Type } from './types.js';
 import { STR, NUM, BUL, ENUM } from './types.js';
 import {
-  IF_THEN_ELSE,
   RETURN,
   describeArg,
   isReservedName,
@@ -48,7 +47,7 @@ export type IdentCategory =
   | 'unknown';
 
 export interface CallInfo {
-  kind: 'function' | 'if_then_else' | 'return' | 'unknown';
+  kind: 'function' | 'return' | 'unknown';
   /** When kind === 'function'. */
   functionName?: string;
   /** Resolved expected types per argument position (after rest expansion). */
@@ -234,11 +233,7 @@ class Checker {
       this.identInfo.set(span.start, 'enum_value');
       return { kind: ENUM, enumKey };
     }
-    if (
-      this.config.functions.has(name) ||
-      (this.config.builtinIfThenElse && name === IF_THEN_ELSE) ||
-      name === RETURN
-    ) {
+    if (this.config.functions.has(name) || name === RETURN) {
       this.identInfo.set(span.start, 'function_name');
       this.err(
         span,
@@ -340,43 +335,6 @@ class Checker {
         'syntax',
       );
       return { kind: 'ANY' };
-    }
-
-    // IF_THEN_ELSE
-    if (this.config.builtinIfThenElse && name === IF_THEN_ELSE) {
-      this.identInfo.set(expr.calleeSpan.start, 'function_name');
-      if (expr.args.length !== 3) {
-        this.err(
-          expr.calleeSpan,
-          `IF_THEN_ELSE expects 3 arguments, got ${expr.args.length}`,
-          'type',
-        );
-        this.callInfo.set(expr, { kind: 'if_then_else' });
-        // still infer to report sub-errors
-        for (const a of expr.args) this.inferExpr(a);
-        return { kind: 'ANY' };
-      }
-      const condT = this.inferExpr(expr.args[0]!);
-      const thenT = this.inferExpr(expr.args[1]!);
-      const elseT = this.inferExpr(expr.args[2]!);
-      if (condT.kind !== 'ANY' && condT.kind !== BUL) {
-        this.err(
-          expr.args[0]!.span,
-          `IF_THEN_ELSE condition must be BUL, got ${formatType(condT)}`,
-          'type',
-        );
-      }
-      this.callInfo.set(expr, { kind: 'if_then_else' });
-      if (thenT.kind === 'ANY' || elseT.kind === 'ANY') return { kind: 'ANY' };
-      if (!sameType(thenT, elseT)) {
-        this.err(
-          expr.span,
-          `IF_THEN_ELSE branches must have the same type, got ${formatType(thenT)} and ${formatType(elseT)}`,
-          'type',
-        );
-        return { kind: 'ANY' };
-      }
-      return thenT;
     }
 
     const spec = this.config.functions.get(name);

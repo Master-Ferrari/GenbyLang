@@ -9,7 +9,7 @@ import type {
 } from './ast.js';
 import type { EnumValue, GenbyError, Value } from './types.js';
 import { isEnumValue, makeEnumValue } from './types.js';
-import { IF_THEN_ELSE, RETURN, type LangConfig } from './config.js';
+import { RETURN, type LangConfig } from './config.js';
 
 export class GenbyRuntimeError extends Error {
   constructor(
@@ -248,26 +248,6 @@ async function evalCall(
       expr.span,
       'syntax',
     );
-  }
-
-  if (config.builtinIfThenElse && name === IF_THEN_ELSE) {
-    if (expr.args.length !== 3) {
-      throw new GenbyRuntimeError(
-        `IF_THEN_ELSE expects 3 arguments`,
-        expr.calleeSpan,
-        'type',
-      );
-    }
-    const cond = await evalExpr(expr.args[0]!, config, env, inputs);
-    if (typeof cond !== 'boolean') {
-      throw new GenbyRuntimeError(
-        `IF_THEN_ELSE condition must be a boolean`,
-        expr.args[0]!.span,
-        'type',
-      );
-    }
-    const branch = cond ? expr.args[1]! : expr.args[2]!;
-    return evalExpr(branch, config, env, inputs);
   }
 
   const spec = config.functions.get(name);

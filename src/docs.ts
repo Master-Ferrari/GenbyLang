@@ -28,7 +28,7 @@ export function generateMarkdownDocs(
   const sections: string[] = [];
 
   sections.push(`# ${title}\n\n${intro}`);
-  sections.push(renderBasicSyntax(config.builtinIfThenElse));
+  sections.push(renderBasicSyntax());
 
   const directives = [...config.directives.values()];
   if (directives.length > 0) {
@@ -69,15 +69,7 @@ ${enums.map(renderEnum).join('\n')}`);
   return sections.join('\n\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
 }
 
-function renderBasicSyntax(builtinIfThenElse: boolean): string {
-  const conditional = builtinIfThenElse
-    ? `
-### Conditional
-
-\`IF_THEN_ELSE(cond, a, b)\` — a built-in special form with lazy branches. Only the taken branch is evaluated; both branches must have the same type.
-`
-    : '';
-
+function renderBasicSyntax(): string {
   return `## Basic syntax
 
 A program is a list of assignments and calls that always ends with \`RETURN(...)\`. Above it sit directives, if any — they run once when the program loads.
@@ -115,7 +107,7 @@ Division by zero is a runtime error.
 ### Calls
 
 \`FN(arg1, arg2, ...)\`. Every call is implicitly asynchronous — no \`await\` needed, the engine waits for you. The result can be assigned to a variable or used inside an expression. Void functions are written as standalone statements.
-${conditional}
+
 ### Termination
 
 \`RETURN(expression)\` — required, exactly once, as the last line. The returned value can be of any type.

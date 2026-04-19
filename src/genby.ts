@@ -15,11 +15,6 @@ import type {
   VariableSpec,
 } from './types.js';
 
-export interface GenbyOptions {
-  /** Treat IF_THEN_ELSE as a built-in special form (default true). */
-  builtinIfThenElse?: boolean;
-}
-
 export interface AddEnumOptions {
   describe?: string;
 }
@@ -32,11 +27,6 @@ export class Genby {
   private readonly variables = new Map<string, VariableSpec>();
   private readonly enums = new Map<string, EnumDef>();
   private readonly enumValueIndex = new Map<string, string>();
-  private readonly builtinIfThenElse: boolean;
-
-  constructor(options: GenbyOptions = {}) {
-    this.builtinIfThenElse = options.builtinIfThenElse ?? true;
-  }
 
   addDirective(spec: DirectiveSpec): this {
     this.assertNameFree(spec.name, 'directive');
@@ -105,7 +95,6 @@ export class Genby {
       variables: new Map(this.variables),
       enums: new Map(this.enums),
       enumValueIndex: new Map(this.enumValueIndex),
-      builtinIfThenElse: this.builtinIfThenElse,
     };
     return new LangMachine(config);
   }
@@ -124,9 +113,6 @@ export class Genby {
     }
     if (name === 'RETURN') {
       throw new Error(`'RETURN' is reserved`);
-    }
-    if (this.builtinIfThenElse && name === 'IF_THEN_ELSE') {
-      throw new Error(`'IF_THEN_ELSE' is reserved as a built-in special form`);
     }
   }
 }

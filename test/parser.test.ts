@@ -48,7 +48,7 @@ describe('parser', () => {
   });
 
   it('supports multiline calls', () => {
-    const src = 'x = IF_THEN_ELSE(\n  1 < 2\n  , "a"\n  , "b")\nRETURN(x)';
+    const src = 'x = PICK(\n  1 < 2\n  , "a"\n  , "b")\nRETURN(x)';
     const { errors } = parseSrc(src);
     expect(errors).toEqual([]);
   });
