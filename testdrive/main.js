@@ -354,7 +354,7 @@ function renderDocs(machine, counts) {
     try {
         const md = machine.docs();
         docsBody.innerHTML = renderMarkdown(md);
-        docsCount.textContent = `[ ${counts.summary} ]`;
+        if (docsCount) docsCount.textContent = `[ ${counts.summary} ]`;
     } catch (err) {
         docsBody.innerHTML = `<div class="md-placeholder">docs error: ${escapeHtml(String(err.message ?? err))}</div>`;
     }
