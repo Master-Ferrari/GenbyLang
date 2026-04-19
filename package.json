@@ -21,7 +21,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "testdrive": "npm run build && node scripts/serve-testdrive.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

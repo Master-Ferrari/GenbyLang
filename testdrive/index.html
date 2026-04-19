@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>genby · test drive</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+    *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        outline: none;
+    }
+
+    html {
+        background: #0c0d0f;
+        scrollbar-width: thin;
+        scrollbar-color: #656b76 #0c0d0f;
+    }
+
+    body {
+        background: #0c0d0f;
+        color: #e5e7eb;
+        font-size: 14px;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        padding: 24px;
+        min-height: 100vh;
+        user-select: none;
+    }
+
+    .page {
+        max-width: 720px;
+        margin: 0 auto;
+        display: grid;
+        gap: 18px;
+    }
+
+    .section-title {
+        font-size: 0.75rem;
+        color: #4b5563;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 4px 0 2px;
+    }
+
+    .panel {
+        border: 1px solid #272a30;
+        background: #111216;
+        padding: 8px;
+        border-radius: 8px;
+        display: grid;
+        gap: 8px;
+    }
+
+    .input-label {
+        font-size: 0.9rem;
+        color: #9aa3af;
+    }
+
+    .load-btn {
+        padding: 6px 10px;
+        border: 1px solid #2b2f36;
+        border-radius: 6px;
+        background: #171923;
+        color: #e5e7eb;
+        cursor: pointer;
+        font-size: 0.9rem;
+        line-height: 1;
+        font-family: inherit;
+    }
+    .load-btn:hover { filter: brightness(1.06); }
+    .load-btn:active { filter: brightness(0.98); }
+    .load-btn:disabled { opacity: 0.5; cursor: default; }
+
+    .json {
+        padding: 8px;
+        border: 1px solid #2b2f36;
+        border-radius: 6px;
+        background: #0b0c10;
+        color: #e5e7eb;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 12.5px;
+        line-height: 1.4;
+        min-height: 120px;
+        resize: vertical;
+        white-space: pre;
+        overflow: auto;
+        user-select: text;
+        scrollbar-width: thin;
+        scrollbar-color: #656b76 #111316;
+        width: 100%;
+    }
+    .json::selection { background: #ffffff; color: #000000; }
+    .json:focus { border-color: #2b2f36; }
+    .json::-webkit-scrollbar { width: 10px; height: 10px; }
+    .json::-webkit-scrollbar-track { background: #111316; border-radius: 8px; }
+    .json::-webkit-scrollbar-thumb {
+        background: #656b76;
+        border-radius: 8px;
+        border: 2px solid #111316;
+    }
+    .json::-webkit-scrollbar-thumb:hover { background: #7a818d; }
+
+    .error {
+        color: #ef4444;
+        font-size: 0.875rem;
+        user-select: text;
+        white-space: pre-wrap;
+    }
+    .success {
+        color: #10b981;
+        font-size: 0.875rem;
+        user-select: text;
+        white-space: pre-wrap;
+    }
+    .empty {
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+
+    .docs-details > summary {
+        cursor: pointer;
+        list-style: none;
+        color: #9aa3af;
+        font-size: 0.9rem;
+        padding: 2px 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .docs-details > summary::-webkit-details-marker { display: none; }
+    .docs-details > summary::before {
+        content: "▸";
+        color: #9aa3af;
+        font-size: 10px;
+        transition: transform 0.15s;
+    }
+    .docs-details[open] > summary::before { transform: rotate(90deg); }
+    .docs-body {
+        margin-top: 8px;
+        padding: 8px;
+        border: 1px solid #2b2f36;
+        border-radius: 6px;
+        background: #0b0c10;
+        color: #e5e7eb;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 12.5px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        max-height: 420px;
+        overflow: auto;
+        user-select: text;
+        scrollbar-width: thin;
+        scrollbar-color: #656b76 #111316;
+    }
+
+    .genby-host {
+        --genby-font-family: ui-monospace, Menlo, Consolas, monospace;
+        --genby-font-size: 13px;
+        --genby-color: #e5e7eb;
+        --genby-bg: #0b0c10;
+        --genby-border-color: #2b2f36;
+        --genby-radius: 6px;
+        --genby-min-height: 8em;
+        --genby-caret: #e5e7eb;
+        --genby-selection: rgba(255, 255, 255, 0.25);
+        --genby-popup-bg: #0b0c10;
+        --genby-popup-border: #2b2f36;
+        --genby-popup-selected-bg: #1e2230;
+        --genby-popup-selected-color: #ffffff;
+        --genby-color-string: #a5d6ff;
+        --genby-color-number: #ff966b;
+        --genby-color-comment: #6b7280;
+        --genby-color-directive: #c29bff;
+        --genby-color-function: #f0a868;
+        --genby-color-enum: #7ee08c;
+        --genby-color-ext-var: #b39bff;
+        --genby-color-local-var: #e5e7eb;
+        --genby-color-ident: #e5e7eb;
+        --genby-color-op: #9aa3af;
+        --genby-color-punct: #9aa3af;
+        --genby-color-interp: #c29bff;
+        --genby-error-color: #ef4444;
+    }
+    .genby-host .genby-input { user-select: text; }
+
+    .output-pre {
+        padding: 8px;
+        border: 1px solid #2b2f36;
+        border-radius: 6px;
+        background: #0b0c10;
+        color: #e5e7eb;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 12.5px;
+        line-height: 1.4;
+        white-space: pre-wrap;
+        user-select: text;
+        min-height: 40px;
+    }
+
+    .hint {
+        font-size: 0.75rem;
+        color: #4b5563;
+        padding: 4px 0;
+    }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+    <div class="section-title">language config</div>
+    <div class="panel">
+        <span class="input-label">js declaring functions on a <code>Genby</code> instance. return it at the end.</span>
+        <textarea class="json" id="configInput" spellcheck="false"></textarea>
+        <button class="load-btn" id="makeBtn" type="button">make genby !</button>
+        <div id="configStatus" class="empty">not built yet</div>
+    </div>
+
+    <div class="section-title">generated docs</div>
+    <div class="panel">
+        <details class="docs-details" id="docsDetails">
+            <summary>show docs</summary>
+            <pre class="docs-body" id="docsBody">build the language first</pre>
+        </details>
+    </div>
+
+    <div class="section-title">genby program</div>
+    <div class="panel">
+        <span class="input-label">program input</span>
+        <div class="genby-host" id="genbyHost">
+            <div class="empty" style="padding: 8px;">build the language first</div>
+        </div>
+    </div>
+
+    <div class="section-title">run</div>
+    <div class="panel">
+        <button class="load-btn" id="runBtn" type="button" disabled>run</button>
+        <div id="runStatus" class="empty">idle</div>
+        <pre class="output-pre" id="runOutput"></pre>
+    </div>
+
+    <div class="hint">tip: edit the config, hit make genby, then write and run a program.</div>
+</div>
+
+<script type="module" src="./main.js"></script>
+</body>
+</html>

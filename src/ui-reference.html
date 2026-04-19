@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>UI Kit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+    /* ==========================================================
+       Design tokens
+       ==========================================================
+       bg-app      #0c0d0f    window / page background
+       bg-panel    #111216    card / panel surface
+       bg-input    #0b0c10    text field surface
+       bg-btn      #171923    button surface
+       bg-active   #1e2230    selected option background
+       border      #272a30    panel border (low contrast)
+       border-in   #2b2f36    input/button border
+       border-hi   #3a3f48    input border on hover
+       accent      #3b82f6    focus / open state
+       text        #e5e7eb    primary text
+       text-muted  #9aa3af    labels, meta, arrows
+       text-dim    #6b7280    empty-state text
+       text-faint  #4b5563    footer hints
+       error       #ef4444
+       success     #10b981
+       scroll-thumb        #656b76
+       scroll-thumb-hover  #7a818d
+       scroll-track        #111316
+       ========================================================== */
+
+    *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        outline: none;
+    }
+
+    html {
+        background: #0c0d0f;
+        scrollbar-width: thin;
+        scrollbar-color: #656b76 #0c0d0f;
+    }
+
+    body {
+        background: #0c0d0f;
+        color: #e5e7eb;
+        font-size: 14px;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        padding: 24px;
+        min-height: 100vh;
+        user-select: none;
+    }
+
+    .page {
+        max-width: 720px;
+        margin: 0 auto;
+        display: grid;
+        gap: 18px;
+    }
+
+    .section-title {
+        font-size: 0.75rem;
+        color: #4b5563;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 4px 0 2px;
+    }
+
+    /* ---------- panel ---------- */
+    .panel {
+        border: 1px solid #272a30;
+        background: #111216;
+        padding: 8px;
+        border-radius: 8px;
+        display: grid;
+        gap: 8px;
+    }
+
+    /* ---------- label ---------- */
+    .input-label {
+        font-size: 0.9rem;
+        color: #9aa3af;
+    }
+
+    .input-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 6px;
+    }
+
+    /* ---------- button (text) ---------- */
+    .load-btn {
+        padding: 6px 10px;
+        border: 1px solid #2b2f36;
+        border-radius: 6px;
+        background: #171923;
+        color: #e5e7eb;
+        cursor: pointer;
+        font-size: 0.9rem;
+        line-height: 1;
+        font-family: inherit;
+    }
+    .load-btn:hover { filter: brightness(1.06); }
+    .load-btn:active { filter: brightness(0.98); }
+
+    /* ---------- button (icon) ---------- */
+    .icon-btn {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 1px solid #2b2f36;
+        border-radius: 6px;
+        background: #171923;
+        color: #e5e7eb;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-family: inherit;
+    }
+    .icon-btn:hover { filter: brightness(1.06); }
+    .icon-btn:active { filter: brightness(0.98); }
+
+    /* ---------- textarea (monospace, resizable) ---------- */
+    .json {
+        padding: 8px;
+        border: 1px solid #2b2f36;
+        border-radius: 6px;
+        background: #0b0c10;
+        color: #e5e7eb;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 12.5px;
+        line-height: 1.4;
+        min-height: 120px;
+        resize: vertical;
+        white-space: pre;
+        overflow: auto;
+        user-select: text;
+        scrollbar-width: thin;
+        scrollbar-color: #656b76 #111316;
+    }
+    .json::selection { background: #ffffff; color: #000000; }
+    .json:focus { outline: none; box-shadow: none; border-color: #2b2f36; }
+    .json::-webkit-scrollbar { width: 10px; height: 10px; }
+    .json::-webkit-scrollbar-track { background: #111316; border-radius: 8px; }
+    .json::-webkit-scrollbar-thumb {
+        background: #656b76;
+        border-radius: 8px;
+        border: 2px solid #111316;
+    }
+    .json::-webkit-scrollbar-thumb:hover { background: #7a818d; }
+    .json::-webkit-scrollbar-corner { background: #111316; }
+    .json::-webkit-resizer {
+        background:
+            linear-gradient(135deg, transparent 55%, #656b76 55% 58%, transparent 58%) bottom right / 16px 16px no-repeat,
+            linear-gradient(135deg, transparent 70%, #7a818d 70% 73%, transparent 73%) bottom right / 16px 16px no-repeat,
+            linear-gradient(135deg, transparent 85%, #9aa3af 85% 88%, transparent 88%) bottom right / 16px 16px no-repeat;
+        background-color: #0b0c10;
+        border-top-left-radius: 6px;
+    }
+
+    /* ---------- text input (single-line) ---------- */
+    .search-input {
+        padding: 6px 8px;
+        border: 1px solid #2b2f36;
+        border-radius: 6px;
+        background: #0b0c10;
+        color: #e5e7eb;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 12.5px;
+        line-height: 1.4;
+        user-select: text;
+    }
+    .search-input::selection { background: #ffffff; color: #000000; }
+    .search-input:focus { outline: none; border-color: #2b2f36; }
+    .search-input::placeholder { color: #6b7280; }
+
+    /* ---------- dropdown (custom) ---------- */
+    .dropdown {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+    }
+    .trigger {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 8px;
+        border: 1px solid #2b2f36;
+        border-radius: 6px;
+        background: #0b0c10;
+        color: #e5e7eb;
+        font-family: inherit;
+        font-size: 0.85rem;
+        cursor: pointer;
+        line-height: 1.2;
+        text-align: left;
+    }
+    .trigger:hover { border-color: #3a3f48; }
+    .trigger.open { border-color: #3b82f6; }
+    .trigger .label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+        min-width: 0;
+    }
+    .trigger .arrow {
+        color: #9aa3af;
+        font-size: 15px;
+        transition: transform 0.15s;
+    }
+    .trigger .arrow.open { transform: rotate(180deg); }
+
+    .menu {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        z-index: 200;
+        list-style: none;
+        margin: 0;
+        padding: 4px;
+        border: 1px solid #2b2f36;
+        border-radius: 6px;
+        background: #0b0c10;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #656b76 #111316;
+    }
+    .menu::-webkit-scrollbar { width: 10px; height: 10px; }
+    .menu::-webkit-scrollbar-track { background: #111316; border-radius: 8px; }
+    .menu::-webkit-scrollbar-thumb {
+        background: #656b76;
+        border-radius: 8px;
+        border: 2px solid #111316;
+    }
+    .menu::-webkit-scrollbar-thumb:hover { background: #7a818d; }
+    .menu::-webkit-scrollbar-corner { background: #111316; }
+
+    .option {
+        width: 100%;
+        display: block;
+        padding: 6px 8px;
+        border: none;
+        border-radius: 4px;
+        background: transparent;
+        color: #e5e7eb;
+        font-family: inherit;
+        font-size: 0.85rem;
+        text-align: left;
+        cursor: pointer;
+        line-height: 1.3;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-top: 3px;
+    }
+    .option:first-child { margin-top: 0; }
+    .option:hover { background: #171923; }
+    .option.active { background: #1e2230; color: #ffffff; }
+
+    /* ---------- select row ---------- */
+    .select-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+    }
+    .select-label {
+        font-size: 0.85rem;
+        color: #9aa3af;
+        min-width: 56px;
+    }
+
+    /* ---------- status messages ---------- */
+    .error {
+        color: #ef4444;
+        font-size: 0.875rem;
+        user-select: text;
+    }
+    .success {
+        color: #10b981;
+        font-size: 0.875rem;
+        user-select: text;
+    }
+    .empty {
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+
+    /* ---------- match list ---------- */
+    .match-list {
+        display: grid;
+        gap: 4px;
+        max-height: 240px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #656b76 #111316;
+    }
+    .match-item {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        padding: 5px 8px;
+        border: 1px solid #2b2f36;
+        border-radius: 6px;
+        background: #171923;
+        color: #e5e7eb;
+        cursor: pointer;
+        font-size: 0.85rem;
+        line-height: 1.3;
+        text-align: left;
+        font-family: inherit;
+    }
+    .match-item:hover { filter: brightness(1.1); }
+    .match-item:active { filter: brightness(0.98); }
+    .match-tc {
+        color: #e5e7eb;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        flex-shrink: 0;
+    }
+    .match-meta {
+        color: #9aa3af;
+        font-size: 0.8rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* ---------- tabs ---------- */
+    .tabs-bar {
+        display: flex;
+        align-items: flex-end;
+        position: relative;
+        padding: 0 0 1px 12px;
+    }
+    .tabs-line {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(to right, transparent 0%, #272a30 13px, #272a30 calc(100% - 30px), transparent 100%);
+        z-index: 0;
+    }
+    .tab {
+        position: relative;
+        padding: 5px 14px;
+        border: 1px solid #272a30;
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+        background: #0c0d0f;
+        color: #9aa3af;
+        cursor: pointer;
+        font-size: 0.9rem;
+        line-height: 1;
+        margin-right: -1px;
+        z-index: 1;
+        font-family: inherit;
+    }
+    .tab:hover:not(.tab-active) {
+        background: #12141a;
+        color: #b8bfc9;
+    }
+    .tab:active { filter: brightness(0.98); }
+    .tab.tab-active {
+        background: transparent;
+        color: #e5e7eb;
+        z-index: 2;
+    }
+    .tab.tab-active::after {
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #0c0d0f;
+    }
+
+    /* ---------- resize handle (visual demo) ---------- */
+    .resize-demo {
+        display: flex;
+        align-items: stretch;
+        height: 64px;
+        gap: 0;
+    }
+    .resize-demo .side {
+        flex: 1;
+        background: #111216;
+        border: 1px solid #272a30;
+        border-radius: 6px;
+    }
+    .resize-handle {
+        width: 7px;
+        margin: 0 -3px;
+        z-index: 100;
+        cursor: col-resize;
+        border-radius: 3.5px;
+        flex-shrink: 0;
+        transition: background 0.15s;
+    }
+    .resize-handle:hover,
+    .resize-handle.active { background: #3f4041; }
+
+    /* ---------- footer hint ---------- */
+    .hint {
+        font-size: 0.75rem;
+        color: #4b5563;
+        padding: 4px 0;
+    }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+    <!-- Tabs -->
+    <div class="section-title">tabs</div>
+    <div class="tabs-bar">
+        <button class="tab tab-active" type="button" data-tab="a">tab one</button>
+        <button class="tab" type="button" data-tab="b">tab two</button>
+        <button class="tab" type="button" data-tab="c">tab three</button>
+        <div class="tabs-line"></div>
+    </div>
+
+    <!-- Panel: labels + buttons + textarea -->
+    <div class="section-title">panel · labels · buttons · textarea</div>
+    <div class="panel">
+        <div class="input-header">
+            <span class="input-label">textarea label</span>
+            <div class="header-actions">
+                <button class="load-btn" type="button">button</button>
+                <button class="load-btn" type="button">button</button>
+                <button class="icon-btn" id="collapseBtn" type="button" aria-label="collapse" title="collapse">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 10 8 5 13 10" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <textarea class="json" spellcheck="false" placeholder="placeholder text...">{
+  "key": "value",
+  "items": [1, 2, 3]
+}</textarea>
+        <button class="load-btn" type="button">button</button>
+    </div>
+
+    <!-- Panel: dropdowns + text input + match list -->
+    <div class="section-title">dropdown · text input · match list</div>
+    <div class="panel">
+        <div class="select-row">
+            <span class="select-label">label</span>
+            <div class="dropdown" id="dd1">
+                <button class="trigger" type="button">
+                    <span class="label">option one</span>
+                    <span class="arrow">▾</span>
+                </button>
+                <ul class="menu" style="display: none; max-height: 220px">
+                    <li><button class="option active" type="button">option one</button></li>
+                    <li><button class="option" type="button">option two</button></li>
+                    <li><button class="option" type="button">option three with a very long label that will be truncated</button></li>
+                    <li><button class="option" type="button">option four</button></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="select-row">
+            <span class="select-label">label</span>
+            <div class="dropdown" id="dd2">
+                <button class="trigger" type="button">
+                    <span class="label">item one</span>
+                    <span class="arrow">▾</span>
+                </button>
+                <ul class="menu" style="display: none; max-height: 220px">
+                    <li><button class="option active" type="button">item one</button></li>
+                    <li><button class="option" type="button">item two</button></li>
+                    <li><button class="option" type="button">item three</button></li>
+                </ul>
+            </div>
+        </div>
+
+        <span class="input-label">input label</span>
+        <input type="text" class="search-input" placeholder="placeholder..." spellcheck="false" />
+
+        <div class="match-list">
+            <button class="match-item" type="button">
+                <span class="match-tc">item a</span>
+                <span class="match-meta">description</span>
+            </button>
+            <button class="match-item" type="button">
+                <span class="match-tc">item b</span>
+                <span class="match-meta">description with a much longer text</span>
+            </button>
+            <button class="match-item" type="button">
+                <span class="match-tc">item c</span>
+                <span class="match-meta">description</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Status messages -->
+    <div class="section-title">status messages</div>
+    <div class="panel">
+        <div class="error">error message</div>
+        <div class="success">success message</div>
+        <div class="empty">empty state</div>
+    </div>
+
+    <!-- Resize handle -->
+    <div class="section-title">resize handle</div>
+    <div class="resize-demo">
+        <div class="side"></div>
+        <div class="resize-handle"></div>
+        <div class="side"></div>
+    </div>
+
+    <div class="hint">hint text</div>
+</div>
+
+<script>
+    // tabs
+    document.querySelectorAll('.tabs-bar').forEach(bar => {
+        bar.addEventListener('click', (e) => {
+            const btn = e.target.closest('.tab');
+            if (!btn) return;
+            bar.querySelectorAll('.tab').forEach(t => t.classList.remove('tab-active'));
+            btn.classList.add('tab-active');
+        });
+    });
+
+    // icon button toggle state (demo only)
+    const collapseBtn = document.getElementById('collapseBtn');
+    let collapsed = false;
+    collapseBtn.addEventListener('click', () => {
+        collapsed = !collapsed;
+        collapseBtn.setAttribute('aria-label', collapsed ? 'expand' : 'collapse');
+        collapseBtn.setAttribute('title', collapsed ? 'expand' : 'collapse');
+        collapseBtn.innerHTML = collapsed
+            ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 8 11 13 6"/></svg>'
+            : '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 10 8 5 13 10"/></svg>';
+    });
+
+    // dropdowns (click to open, click option to select, outside click / escape to close)
+    function setupDropdown(root) {
+        const trigger = root.querySelector('.trigger');
+        const arrow = trigger.querySelector('.arrow');
+        const labelEl = trigger.querySelector('.label');
+        const menu = root.querySelector('.menu');
+        const options = menu.querySelectorAll('.option');
+
+        function close() {
+            menu.style.display = 'none';
+            trigger.classList.remove('open');
+            arrow.classList.remove('open');
+        }
+        function open() {
+            menu.style.display = '';
+            trigger.classList.add('open');
+            arrow.classList.add('open');
+        }
+
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (menu.style.display === 'none') open(); else close();
+        });
+
+        options.forEach(opt => {
+            opt.addEventListener('click', () => {
+                options.forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                labelEl.textContent = opt.textContent;
+                close();
+            });
+        });
+
+        document.addEventListener('mousedown', (e) => {
+            if (!root.contains(e.target)) close();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') close();
+        });
+
+        // wheel-to-cycle (matches Dropdown.svelte behavior)
+        trigger.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const list = Array.from(options);
+            const idx = list.findIndex(o => o.classList.contains('active'));
+            const dir = e.deltaY > 0 ? 1 : -1;
+            const next = Math.max(0, Math.min(list.length - 1, (idx < 0 ? 0 : idx) + dir));
+            if (next !== idx) list[next].click();
+        }, { passive: false });
+    }
+    document.querySelectorAll('.dropdown').forEach(setupDropdown);
+
+    // resize handle
+    document.querySelectorAll('.resize-demo').forEach(demo => {
+        const handle = demo.querySelector('.resize-handle');
+        const leftSide = demo.querySelector('.side');
+        if (!handle || !leftSide) return;
+
+        handle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            handle.classList.add('active');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+
+            const startX = e.clientX;
+            const startWidth = leftSide.getBoundingClientRect().width;
+            const demoRect = demo.getBoundingClientRect();
+            const handleWidth = handle.getBoundingClientRect().width;
+            const minWidth = 20;
+            const maxWidth = demoRect.width - handleWidth - minWidth;
+
+            const onMove = (ev) => {
+                const dx = ev.clientX - startX;
+                const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
+                leftSide.style.flex = '0 0 auto';
+                leftSide.style.width = newWidth + 'px';
+            };
+            const onUp = () => {
+                handle.classList.remove('active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                window.removeEventListener('mousemove', onMove);
+                window.removeEventListener('mouseup', onUp);
+            };
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onUp);
+        });
+    });
+</script>
+
+</body>
+</html>
