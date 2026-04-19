@@ -421,36 +421,26 @@
         white-space: pre-wrap;
         user-select: text;
     }
+    .badge-msg.err { color: var(--error); }
     @keyframes pulse { 50% { opacity: 0.35; } }
 
-    /* ---------- docs (collapsible) ---------- */
-    .docs-details { display: grid; gap: 10px; }
-    .docs-details > summary {
+    /* ---------- foldable card (docs) ---------- */
+    details.card > summary.card-head {
         cursor: pointer;
         list-style: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--text-muted);
-        font-size: 0.85rem;
-        padding: 4px 10px;
-        border: 1px solid var(--border-in);
-        border-radius: 6px;
-        background: var(--bg-chrome);
         user-select: none;
-        width: fit-content;
     }
-    .docs-details > summary:hover { border-color: var(--border-hi); color: var(--text); }
-    .docs-details > summary::-webkit-details-marker { display: none; }
-    .docs-details > summary::before {
+    details.card > summary.card-head::-webkit-details-marker { display: none; }
+    details.card > summary.card-head::before {
         content: "▸";
         color: var(--accent);
-        font-size: 19px;
+        font-size: 14px;
         transition: transform 0.15s;
     }
-    .docs-details[open] > summary::before { transform: rotate(90deg); }
-    .docs-details[open] > summary { border-color: var(--border-hi); color: var(--text); }
-    .docs-details > summary .count {
+    details.card[open] > summary.card-head::before { transform: rotate(90deg); }
+    details.card > summary.card-head:hover { color: var(--text); }
+    details.card:not([open]) > summary.card-head { border-bottom-color: transparent; }
+    .card-head .count {
         color: var(--text-dim);
         font-size: 0.7rem;
         letter-spacing: 0.08em;
@@ -662,7 +652,7 @@
             <div class="card">
                 <div class="card-head">
                     <div class="filename">config<span class="ext">.js</span></div>
-                    <div class="right">editable</div>
+                    <div class="right">try it</div>
                 </div>
                 <div class="code-edit" id="configEdit">
                     <pre class="code-highlight" aria-hidden="true"><code id="configHighlight"></code></pre>
@@ -696,19 +686,14 @@
                 a full markdown reference is produced from your language config via <code>machine.docs()</code>.
             </div>
 
-            <details class="docs-details" id="docsDetails">
-                <summary>
-                    <span>show reference</span>
-                    <span class="count" id="docsCount"></span>
+            <details class="card" id="docsCard">
+                <summary class="card-head">
+                    <div class="filename">reference<span class="ext">.md</span></div>
+                    <!-- <span class="count" id="docsCount"></span> -->
+                    <div class="right">generated</div>
                 </summary>
-                <div class="card" id="docsCard">
-                    <div class="card-head">
-                        <div class="filename">reference<span class="ext">.md</span></div>
-                        <div class="right">rendered</div>
-                    </div>
-                    <div class="md-render" id="docsBody">
-                        <div class="md-placeholder">build the language first</div>
-                    </div>
+                <div class="md-render" id="docsBody">
+                    <div class="md-placeholder">build the language first</div>
                 </div>
             </details>
         </div>
@@ -739,6 +724,7 @@
                     <div class="md-placeholder">build the language first</div>
                 </div>
             </div>
+            <div class="badge-msg" id="programMsg"></div>
         </div>
     </div>
 

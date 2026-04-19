@@ -50,6 +50,7 @@ const docsCount = document.getElementById('docsCount');
 
 const genbyHost = document.getElementById('genbyHost');
 const programRight = document.getElementById('programRight');
+const programMsg = document.getElementById('programMsg');
 
 const runBtn = document.getElementById('runBtn');
 const runBadge = document.getElementById('runBadge');
@@ -336,7 +337,6 @@ function buildMachine() {
     runOutput.classList.add('empty');
     runRight.textContent = '—';
     setMsg(runMsg, '');
-    programRight.textContent = 'ready';
 }
 
 function summarizeMachine(machine) {
@@ -360,6 +360,25 @@ function renderDocs(machine, counts) {
     }
 }
 
+function formatCheckErrors(errors) {
+    return errors
+        .map((e) => `[${e.kind}] line ${e.line}, col ${e.column}\n  ${e.message}`)
+        .join('\n\n');
+}
+
+function refreshProgramCheck(input) {
+    const { ok, errors } = input.check();
+    if (ok) {
+        programMsg.textContent = '';
+        programMsg.classList.remove('err');
+        programRight.textContent = 'ready';
+    } else {
+        programMsg.textContent = formatCheckErrors(errors);
+        programMsg.classList.add('err');
+        programRight.textContent = `${errors.length} error${errors.length === 1 ? '' : 's'}`;
+    }
+}
+
 function mountInput(machine) {
     if (currentInput) {
         currentInput.destroy();
@@ -369,6 +388,8 @@ function mountInput(machine) {
     const input = machine.inputDom();
     genbyHost.appendChild(input.element);
     input.setValue(DEFAULT_PROGRAM);
+    input.onChange(() => refreshProgramCheck(input));
+    refreshProgramCheck(input);
     currentInput = input;
 }
 
