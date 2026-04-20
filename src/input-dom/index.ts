@@ -7,8 +7,13 @@ import { highlightToHtml } from './highlight.js';
 import {
   buildContext,
   computeSuggestions,
+  getActiveArgSpec,
+  resolveSignature,
+  type AutocompleteContext,
   type Suggestion,
+  type SignatureInfo,
 } from './autocomplete.js';
+import type { ArgSpec } from '../types.js';
 import { ensureStylesInjected } from './styles.js';
 
 export type Unsubscribe = () => void;
@@ -47,9 +52,13 @@ export function createInputDom(machine: LangMachine): GenbyInput {
   const popup = doc.createElement('div');
   popup.className = 'genby-input__popup';
   popup.setAttribute('data-open', 'false');
+  const sigHint = doc.createElement('div');
+  sigHint.className = 'genby-input__sighint';
+  sigHint.setAttribute('data-open', 'false');
 
   stack.appendChild(highlight);
   stack.appendChild(textarea);
+  stack.appendChild(sigHint);
   stack.appendChild(popup);
   root.appendChild(stack);
 
@@ -66,6 +75,7 @@ export function createInputDom(machine: LangMachine): GenbyInput {
   let suggestions: Suggestion[] = [];
   let selectedIdx = 0;
   let popupOpen = false;
+  let sigHintOpen = false;
 
   function emptyState(): State {
     return {
@@ -103,7 +113,18 @@ export function createInputDom(machine: LangMachine): GenbyInput {
 
   function updatePopup(): void {
     const ctx = buildContext(textarea.value, textarea.selectionStart ?? 0);
-    if (ctx.currentWord.length === 0 && !ctx.afterAt) {
+
+    // Signature hint is independent of the completion popup.
+    updateSignatureHint(ctx);
+
+    const activeArg = getActiveArgSpec(machine.config, ctx);
+    const enumAutoOpen =
+      ctx.currentWord.length === 0 &&
+      !ctx.afterAt &&
+      activeArg?.type === 'ENUM' &&
+      !!activeArg.enumKey;
+
+    if (ctx.currentWord.length === 0 && !ctx.afterAt && !enumAutoOpen) {
       hidePopup();
       return;
     }
@@ -118,6 +139,100 @@ export function createInputDom(machine: LangMachine): GenbyInput {
     positionPopup();
     popup.setAttribute('data-open', 'true');
     popupOpen = true;
+  }
+
+  function updateSignatureHint(ctx: AutocompleteContext): void {
+    const sig = resolveSignature(machine.config, ctx);
+    if (!sig) {
+      hideSignatureHint();
+      return;
+    }
+    renderSignatureHint(sig);
+    positionSignatureHint();
+    sigHint.setAttribute('data-open', 'true');
+    sigHintOpen = true;
+  }
+
+  function hideSignatureHint(): void {
+    if (!sigHintOpen) return;
+    sigHint.setAttribute('data-open', 'false');
+    sigHintOpen = false;
+  }
+
+  function renderSignatureHint(sig: SignatureInfo): void {
+    sigHint.innerHTML = '';
+    const head = doc.createElement('span');
+    head.className = 'genby-input__sighint-name';
+    head.textContent = sig.kind === 'directive' ? `@${sig.name}` : sig.name;
+    sigHint.appendChild(head);
+    const open = doc.createElement('span');
+    open.className = 'genby-input__sighint-punct';
+    open.textContent = '(';
+    sigHint.appendChild(open);
+
+    sig.args.forEach((arg, i) => {
+      if (i > 0) {
+        const sep = doc.createElement('span');
+        sep.className = 'genby-input__sighint-punct';
+        sep.textContent = ', ';
+        sigHint.appendChild(sep);
+      }
+      const slot = doc.createElement('span');
+      slot.className = 'genby-input__sighint-arg';
+      if (i === sig.activeIndex) slot.setAttribute('data-active', 'true');
+      slot.appendChild(buildArgLabel(arg));
+      sigHint.appendChild(slot);
+    });
+
+    const close = doc.createElement('span');
+    close.className = 'genby-input__sighint-punct';
+    close.textContent = ')';
+    sigHint.appendChild(close);
+
+    if (sig.returns && sig.returns !== 'VOID') {
+      const ret = doc.createElement('span');
+      ret.className = 'genby-input__sighint-return';
+      ret.textContent = ` → ${sig.returns}`;
+      sigHint.appendChild(ret);
+    }
+
+    const activeArg = sig.args[sig.activeIndex];
+    if (activeArg?.describe) {
+      const desc = doc.createElement('div');
+      desc.className = 'genby-input__sighint-desc';
+      desc.textContent = activeArg.describe;
+      sigHint.appendChild(desc);
+    }
+  }
+
+  function buildArgLabel(arg: ArgSpec): HTMLElement {
+    const wrap = doc.createElement('span');
+    const nm = doc.createElement('span');
+    nm.className = 'genby-input__sighint-argname';
+    const decoration = arg.rest ? '...' : '';
+    const suffix = arg.optional && !arg.rest ? '?' : '';
+    nm.textContent = `${decoration}${arg.name}${suffix}`;
+    wrap.appendChild(nm);
+    const colon = doc.createElement('span');
+    colon.className = 'genby-input__sighint-punct';
+    colon.textContent = ': ';
+    wrap.appendChild(colon);
+    const ty = doc.createElement('span');
+    ty.className = 'genby-input__sighint-type';
+    ty.setAttribute('data-type', arg.type);
+    ty.textContent =
+      arg.type === 'ENUM' ? `ENUM<${arg.enumKey ?? '?'}>` : arg.type;
+    wrap.appendChild(ty);
+    return wrap;
+  }
+
+  function positionSignatureHint(): void {
+    const cursor = textarea.selectionStart ?? 0;
+    const coords = getCaretCoordinates(textarea, cursor);
+    // Anchor below the caret line, plus a half-line gap.
+    const top = coords.top + coords.height + coords.height * 0.5;
+    sigHint.style.top = `${top}px`;
+    sigHint.style.left = `${coords.left}px`;
   }
 
   function hidePopup(): void {
@@ -152,7 +267,12 @@ export function createInputDom(machine: LangMachine): GenbyInput {
     // Approximate caret position via a mirror div.
     const cursor = textarea.selectionStart ?? 0;
     const coords = getCaretCoordinates(textarea, cursor);
-    popup.style.top = `${coords.top + coords.height}px`;
+    let top = coords.top + coords.height + coords.height * 0.5;
+    if (sigHintOpen) {
+      // Stack the completion popup under the signature hint.
+      top += sigHint.offsetHeight + 4;
+    }
+    popup.style.top = `${top}px`;
     popup.style.left = `${coords.left}px`;
   }
 
@@ -206,12 +326,23 @@ export function createInputDom(machine: LangMachine): GenbyInput {
     }
   }
 
+  function onCaretMove(): void {
+    // Refresh popup/signature hint on caret move without input (arrows, clicks).
+    updatePopup();
+  }
+
   textarea.addEventListener('input', onInput);
   textarea.addEventListener('scroll', syncScroll);
   textarea.addEventListener('keydown', onKeydown);
+  textarea.addEventListener('keyup', onCaretMove);
+  textarea.addEventListener('click', onCaretMove);
+  textarea.addEventListener('focus', onCaretMove);
   textarea.addEventListener('blur', () => {
     // Slight delay to let mousedown on popup items land first.
-    setTimeout(hidePopup, 100);
+    setTimeout(() => {
+      hidePopup();
+      hideSignatureHint();
+    }, 100);
   });
 
   // Initial render.
@@ -234,9 +365,13 @@ export function createInputDom(machine: LangMachine): GenbyInput {
     destroy() {
       listeners.clear();
       hidePopup();
+      hideSignatureHint();
       textarea.removeEventListener('input', onInput);
       textarea.removeEventListener('scroll', syncScroll);
       textarea.removeEventListener('keydown', onKeydown);
+      textarea.removeEventListener('keyup', onCaretMove);
+      textarea.removeEventListener('click', onCaretMove);
+      textarea.removeEventListener('focus', onCaretMove);
       root.remove();
     },
   };
