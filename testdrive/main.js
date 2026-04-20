@@ -4,6 +4,7 @@ import {
     NUM,
     BUL,
     ENUM,
+    ANY,
     makeEnumValue,
 } from '../dist/index.js';
 
@@ -12,36 +13,111 @@ import {
 // -----------------------------------------------------------------
 
 const DEFAULT_CONFIG = `// declare your language here.
-// scope: Genby, STR, NUM, BUL, ENUM, makeEnumValue.
+// scope: Genby, STR, NUM, BUL, ENUM, ANY, makeEnumValue.
 // return the configured Genby instance.
 
 const g = new Genby();
 
+// --- type-coercion helpers (ANY in, specific type out) ----------------
+
 g.addFunction({
-    name: 'SOME_PROCESS',
-    describe: 'toy async processor: trims and upper-cases the input',
-    args: [{ name: 'text', type: STR, describe: 'text to process' }],
-    returns: STR,
-    handler: async ([text]) => String(text ?? '').trim().toUpperCase(),
+    name: 'NUM',
+    describe: 'coerces any value to a number (strings parsed, booleans become 1/0)',
+    args: [{ name: 'v', type: ANY, describe: 'any value' }],
+    returns: NUM,
+    handler: ([v]) => {
+        if (v === undefined || v === null) return 0;
+        if (typeof v === 'boolean') return v ? 1 : 0;
+        if (v && typeof v === 'object' && v.__enum) return Number(v.name);
+        return Number(v);
+    },
 });
 
 g.addFunction({
-  name: 'IF_THEN_ELSE',
-  args: [
-    { name: 'cond', type: BUL },
-    { name: 'a', type: STR },
-    { name: 'b', type: STR },
-  ],
-  returns: STR,
-  handler: ([c, a, b]) => (c ? a : b),
+    name: 'STR',
+    describe: 'coerces any value to a string (enums render as their name)',
+    args: [{ name: 'v', type: ANY, describe: 'any value' }],
+    returns: STR,
+    handler: ([v]) => {
+        if (v === undefined || v === null) return '';
+        if (v && typeof v === 'object' && v.__enum) return v.name;
+        return String(v);
+    },
+});
+
+g.addFunction({
+    name: 'BUL',
+    describe: 'coerces any value to a boolean (empty string / 0 / enum-nothing is false)',
+    args: [{ name: 'v', type: ANY, describe: 'any value' }],
+    returns: BUL,
+    handler: ([v]) => {
+        if (v === undefined || v === null) return false;
+        if (v && typeof v === 'object' && v.__enum) return true;
+        return Boolean(v);
+    },
+});
+
+// --- control flow: re-evaluate body count times -----------------------
+
+g.addFunction({
+    name: 'FOR',
+    describe: 'runs body count times; body is re-evaluated on each iteration in the caller scope',
+    args: [
+        { name: 'count', type: NUM, describe: 'iteration count' },
+        { name: 'body', type: ANY, lazy: true, describe: 'expression re-evaluated each iteration' },
+    ],
+    returns: 'VOID',
+    handler: async ([count, body]) => {
+        const n = Math.max(0, Math.floor(Number(count)));
+        for (let i = 0; i < n; i++) {
+            await body();
+        }
+    },
+});
+
+// --- directive with a state it shares with a function ----------------
+
+let prefix = '';
+
+g.addDirective({
+    name: 'PREFIX',
+    describe: 'sets a prefix that SOME_PROCESS prepends to its result',
+    args: [{ name: 'text', type: STR, describe: 'prefix text' }],
+    handler: ([text]) => { prefix = String(text ?? ''); },
+});
+
+g.addFunction({
+    name: 'SOME_PROCESS',
+    describe: 'trims, upper-cases, and prepends the @PREFIX value',
+    args: [{ name: 'text', type: STR, describe: 'text to process' }],
+    returns: STR,
+    handler: async ([text]) => prefix + String(text ?? '').trim().toUpperCase(),
+});
+
+g.addFunction({
+    name: 'IF_THEN_ELSE',
+    args: [
+        { name: 'cond', type: BUL },
+        { name: 'a', type: STR },
+        { name: 'b', type: STR },
+    ],
+    returns: STR,
+    handler: ([c, a, b]) => (c ? a : b),
 });
 
 return g;
 `;
 
-const DEFAULT_PROGRAM = `x = SOME_PROCESS("  hello world  ")
-y = IF_THEN_ELSE(x == "HELLO WORLD", "match", "no match")
-RETURN("{x} — {y}")
+const DEFAULT_PROGRAM = `// user-defined function and a lazy FOR — prints 4 (1 + 1 + 1 + 1).
+x = 1
+
+func(a) = (
+  x = NUM(x) + NUM(a)
+)
+
+FOR(3, (func(3) func(-2)))
+
+RETURN(x)
 `;
 
 // -----------------------------------------------------------------
@@ -307,10 +383,10 @@ function buildMachine() {
     let result;
     try {
         const fn = new Function(
-            'Genby', 'STR', 'NUM', 'BUL', 'ENUM', 'makeEnumValue',
+            'Genby', 'STR', 'NUM', 'BUL', 'ENUM', 'ANY', 'makeEnumValue',
             userCode,
         );
-        result = fn(Genby, STR, NUM, BUL, ENUM, makeEnumValue);
+        result = fn(Genby, STR, NUM, BUL, ENUM, ANY, makeEnumValue);
     } catch (err) {
         setBadge(configBadge, 'err', 'error');
         setMsg(configMsg, `config: ${err.message ?? err}`);

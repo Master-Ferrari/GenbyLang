@@ -1,5 +1,6 @@
 import type {
   BinaryExpr,
+  BlockExpr,
   CallExpr,
   Expression,
   Program,
@@ -7,9 +8,10 @@ import type {
   Statement,
   StringLiteral,
   UnaryExpr,
+  UserFunDefStatement,
 } from './ast.js';
 import type { ArgSpec, GenbyError, Type } from './types.js';
-import { STR, NUM, BUL, ENUM } from './types.js';
+import { STR, NUM, BUL, ENUM, ANY } from './types.js';
 import {
   RETURN,
   describeArg,
@@ -23,7 +25,7 @@ export type ResolvedType =
   | { kind: typeof NUM }
   | { kind: typeof BUL }
   | { kind: typeof ENUM; enumKey: string }
-  | { kind: 'ANY' } // for bail-out cases so we don't cascade errors
+  | { kind: typeof ANY } // wildcard for user-fn params / coercion results
   | { kind: 'VOID' };
 
 export interface CheckOutput {
@@ -36,6 +38,8 @@ export interface CheckOutput {
   callInfo: WeakMap<CallExpr, CallInfo>;
   /** For each Ident span (by span.start), resolution kind — used by highlighter. */
   identInfo: Map<number, IdentCategory>;
+  /** User function definitions, collected from the program (hoisted). */
+  userFunctions: Map<string, UserFunDefStatement>;
 }
 
 export type IdentCategory =
@@ -43,15 +47,18 @@ export type IdentCategory =
   | 'external_var'
   | 'enum_value'
   | 'function_name'
+  | 'user_function'
   | 'directive_name'
   | 'unknown';
 
 export interface CallInfo {
-  kind: 'function' | 'return' | 'unknown';
-  /** When kind === 'function'. */
+  kind: 'function' | 'user_function' | 'return' | 'unknown';
+  /** When kind === 'function' | 'user_function'. */
   functionName?: string;
   /** Resolved expected types per argument position (after rest expansion). */
   expectedArgs?: ResolvedType[];
+  /** For each argument, whether the corresponding ArgSpec has lazy=true. */
+  lazyFlags?: boolean[];
 }
 
 export function check(program: Program, config: LangConfig): CheckOutput {
@@ -63,6 +70,7 @@ export function check(program: Program, config: LangConfig): CheckOutput {
     locals: checker.locals,
     callInfo: checker.callInfo,
     identInfo: checker.identInfo,
+    userFunctions: checker.userFunctions,
   };
 }
 
@@ -71,6 +79,7 @@ class Checker {
   readonly locals = new Map<string, ResolvedType>();
   readonly callInfo = new WeakMap<CallExpr, CallInfo>();
   readonly identInfo = new Map<number, IdentCategory>();
+  readonly userFunctions = new Map<string, UserFunDefStatement>();
   returnType: ResolvedType | null = null;
 
   constructor(private readonly config: LangConfig) {}
@@ -110,9 +119,24 @@ class Checker {
       }
     }
 
-    // Statements
+    // Hoist user function defs so their names are resolvable anywhere in
+    // the program (including in each other's bodies).
     for (const stmt of program.statements) {
+      if (stmt.kind === 'UserFunDef') this.registerUserFunDef(stmt);
+    }
+
+    // Top-level statements first (populate `locals` with variable types).
+    for (const stmt of program.statements) {
+      if (stmt.kind === 'UserFunDef') continue; // handled below
       this.checkStatement(stmt);
+    }
+
+    // Then check user function bodies against the final `locals` snapshot.
+    // This is intentionally optimistic — the checker doesn't track scope
+    // growth line-by-line; calling a user fn before an outer variable is
+    // assigned becomes a runtime "used before assigned" error.
+    for (const fn of this.userFunctions.values()) {
+      this.checkUserFunDefBody(fn);
     }
 
     // RETURN
@@ -127,10 +151,71 @@ class Checker {
     }
   }
 
+  private registerUserFunDef(stmt: UserFunDefStatement): void {
+    const name = stmt.name;
+    if (this.userFunctions.has(name)) {
+      this.err(
+        stmt.nameSpan,
+        `User function '${name}' is already defined`,
+        'reserved_name',
+      );
+      return;
+    }
+    if (isReservedName(this.config, name) || name === RETURN) {
+      this.err(
+        stmt.nameSpan,
+        `Name '${name}' is reserved — pick a different function name`,
+        'reserved_name',
+      );
+      return;
+    }
+    // Duplicate param names.
+    const seen = new Set<string>();
+    for (const p of stmt.params) {
+      if (seen.has(p.name)) {
+        this.err(
+          p.span,
+          `Duplicate parameter name '${p.name}'`,
+          'syntax',
+        );
+      }
+      seen.add(p.name);
+    }
+    this.userFunctions.set(name, stmt);
+    this.identInfo.set(stmt.nameSpan.start, 'user_function');
+  }
+
+  private checkUserFunDefBody(fn: UserFunDefStatement): void {
+    // Params shadow outer locals for the duration of body checking.
+    const saved: Array<[string, ResolvedType | undefined]> = [];
+    for (const p of fn.params) {
+      saved.push([p.name, this.locals.get(p.name)]);
+      this.locals.set(p.name, { kind: ANY });
+      this.identInfo.set(p.span.start, 'local_var');
+    }
+    // Check each statement in the body block.
+    for (const bs of fn.body.statements) {
+      this.checkStatement(bs);
+    }
+    // Restore.
+    for (const [name, prev] of saved) {
+      if (prev === undefined) this.locals.delete(name);
+      else this.locals.set(name, prev);
+    }
+  }
+
   private checkStatement(stmt: Statement): void {
     switch (stmt.kind) {
+      case 'UserFunDef': {
+        // Nested defs are caught at parse-time; this branch is reachable only
+        // via the top-level pre-pass, which is already handled. No-op here.
+        return;
+      }
       case 'Assign': {
-        if (isReservedName(this.config, stmt.name)) {
+        if (
+          isReservedName(this.config, stmt.name) ||
+          this.userFunctions.has(stmt.name)
+        ) {
           this.err(
             stmt.nameSpan,
             `Cannot assign to reserved name '${stmt.name}'`,
@@ -165,8 +250,13 @@ class Checker {
       }
       case 'ExprStmt': {
         const t = this.inferExpr(stmt.expr);
-        // Allow VOID (calls to void functions) and discard anything else.
-        if (stmt.expr.kind !== 'Call' && t.kind !== 'ANY') {
+        // Allow calls, blocks (whose internals are already validated), and
+        // anything typed ANY. Discard other pure expressions (`5`, `x`).
+        if (
+          stmt.expr.kind !== 'Call' &&
+          stmt.expr.kind !== 'Block' &&
+          t.kind !== 'ANY'
+        ) {
           this.err(
             stmt.span,
             `Expression statement must be a function call`,
@@ -197,7 +287,23 @@ class Checker {
         return this.inferBinary(expr);
       case 'Call':
         return this.inferCall(expr);
+      case 'Block':
+        return this.inferBlock(expr);
     }
+  }
+
+  private inferBlock(block: BlockExpr): ResolvedType {
+    let last: ResolvedType = { kind: 'VOID' };
+    for (const s of block.statements) {
+      if (s.kind === 'Assign') {
+        this.checkStatement(s);
+        last = { kind: 'VOID' };
+      } else {
+        // ExprStmt
+        last = this.inferExpr(s.expr);
+      }
+    }
+    return last;
   }
 
   private inferString(s: StringLiteral): ResolvedType {
@@ -233,6 +339,15 @@ class Checker {
       this.identInfo.set(span.start, 'enum_value');
       return { kind: ENUM, enumKey };
     }
+    if (this.userFunctions.has(name)) {
+      this.identInfo.set(span.start, 'user_function');
+      this.err(
+        span,
+        `'${name}' is a function — add '(...)' to call it`,
+        'syntax',
+      );
+      return { kind: ANY };
+    }
     if (this.config.functions.has(name) || name === RETURN) {
       this.identInfo.set(span.start, 'function_name');
       this.err(
@@ -240,7 +355,7 @@ class Checker {
         `'${name}' is a function — add '(...)' to call it`,
         'syntax',
       );
-      return { kind: 'ANY' };
+      return { kind: ANY };
     }
     if (this.config.directives.has(name)) {
       this.identInfo.set(span.start, 'directive_name');
@@ -249,11 +364,11 @@ class Checker {
         `'${name}' is a directive — use '@${name}(...)' at the top of the program`,
         'syntax',
       );
-      return { kind: 'ANY' };
+      return { kind: ANY };
     }
     this.identInfo.set(span.start, 'unknown');
     this.err(span, `Unknown identifier '${name}'`, 'unknown_identifier');
-    return { kind: 'ANY' };
+    return { kind: ANY };
   }
 
   private inferUnary(expr: UnaryExpr): ResolvedType {
@@ -334,7 +449,30 @@ class Checker {
         `RETURN can only be used as the last statement`,
         'syntax',
       );
-      return { kind: 'ANY' };
+      return { kind: ANY };
+    }
+
+    // User-defined function?
+    const userFn = this.userFunctions.get(name);
+    if (userFn) {
+      this.identInfo.set(expr.calleeSpan.start, 'user_function');
+      if (expr.args.length !== userFn.params.length) {
+        this.err(
+          expr.calleeSpan,
+          `'${name}' expects ${userFn.params.length} argument(s), got ${expr.args.length}`,
+          'type',
+        );
+      }
+      // Args evaluated in caller scope — infer types (for error surfacing)
+      // but don't constrain (params are ANY).
+      for (const a of expr.args) this.inferExpr(a);
+      this.callInfo.set(expr, {
+        kind: 'user_function',
+        functionName: name,
+        expectedArgs: expr.args.map(() => ({ kind: ANY })),
+        lazyFlags: expr.args.map(() => false),
+      });
+      return { kind: ANY };
     }
 
     const spec = this.config.functions.get(name);
@@ -347,7 +485,7 @@ class Checker {
       );
       this.callInfo.set(expr, { kind: 'unknown' });
       for (const a of expr.args) this.inferExpr(a);
-      return { kind: 'ANY' };
+      return { kind: ANY };
     }
     this.identInfo.set(expr.calleeSpan.start, 'function_name');
     const expected = this.checkCallArgs(
@@ -357,10 +495,15 @@ class Checker {
       expr.calleeSpan,
       { constOnly: false },
     );
+    const lazyFlags: boolean[] = expr.args.map((_, i) => {
+      const s = i < spec.args.length ? spec.args[i] : spec.args[spec.args.length - 1];
+      return s?.lazy === true;
+    });
     this.callInfo.set(expr, {
       kind: 'function',
       functionName: spec.name,
       expectedArgs: expected,
+      lazyFlags,
     });
     if (spec.returns === 'VOID') return { kind: 'VOID' };
     return typeSpecToResolved(spec.returns, spec.returnsEnumKey);
@@ -408,11 +551,12 @@ class Checker {
       }
       const actual = this.inferExpr(argNode);
       if (!spec) {
-        expected.push({ kind: 'ANY' });
+        expected.push({ kind: ANY });
         continue;
       }
       const expectedType = typeSpecToResolved(spec.type, spec.enumKey);
       expected.push(expectedType);
+      if (spec.lazy) continue; // lazy args: handler decides how to use the value
       if (actual.kind === 'ANY') continue;
       if (!matchesExpected(expectedType, actual)) {
         this.err(
@@ -491,6 +635,9 @@ function assertConstExpr(
       return;
     case 'Call':
       report(expr.span, `Directive arguments cannot contain function calls`);
+      return;
+    case 'Block':
+      report(expr.span, `Directive arguments cannot contain block expressions`);
       return;
   }
 }

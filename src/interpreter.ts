@@ -1,13 +1,16 @@
 import type {
   BinaryExpr,
+  BlockExpr,
+  BlockStatement,
   CallExpr,
   Expression,
   Program,
   SourceSpan,
   StringLiteral,
   UnaryExpr,
+  UserFunDefStatement,
 } from './ast.js';
-import type { EnumValue, GenbyError, Value } from './types.js';
+import type { EnumValue, GenbyError, HandlerArg, Value } from './types.js';
 import { isEnumValue, makeEnumValue } from './types.js';
 import { RETURN, type LangConfig } from './config.js';
 
@@ -68,41 +71,89 @@ export async function runProgram(
     }
   }
 
+  // Hoist user function defs (available to all top-level statements from the start).
+  const userFunctions = new Map<string, UserFunDefStatement>();
+  for (const stmt of program.statements) {
+    if (stmt.kind === 'UserFunDef') userFunctions.set(stmt.name, stmt);
+  }
+
   for (const stmt of program.statements) {
     if (stmt.kind === 'Assign') {
-      const v = await evalExpr(stmt.value, config, env, inputs);
+      const v = await evalExpr(stmt.value, config, env, inputs, userFunctions);
       env.set(stmt.name, v);
     } else if (stmt.kind === 'ExprStmt') {
-      await evalExpr(stmt.expr, config, env, inputs);
+      await evalExpr(stmt.expr, config, env, inputs, userFunctions);
     }
+    // UserFunDef: nothing to execute — already hoisted.
   }
 
   if (!program.returnStmt) {
     throw new GenbyRuntimeError(`Missing RETURN(...)`, program.span, 'missing_return');
   }
-  return evalExpr(program.returnStmt.expr, config, env, inputs);
+  return evalExpr(
+    program.returnStmt.expr,
+    config,
+    env,
+    inputs,
+    userFunctions,
+  );
 }
+
+type UserFnMap = Map<string, UserFunDefStatement>;
 
 async function evalExpr(
   expr: Expression,
   config: LangConfig,
   env: Map<string, Value>,
   inputs: Record<string, Value>,
+  userFns: UserFnMap,
 ): Promise<Value> {
   switch (expr.kind) {
     case 'NumberLit':
       return expr.value;
     case 'StringLit':
-      return evalString(expr, config, env, inputs);
+      return evalString(expr, config, env, inputs, userFns);
     case 'Ident':
       return evalIdent(expr.name, expr.span, config, env, inputs);
     case 'Unary':
-      return evalUnary(expr, config, env, inputs);
+      return evalUnary(expr, config, env, inputs, userFns);
     case 'Binary':
-      return evalBinary(expr, config, env, inputs);
+      return evalBinary(expr, config, env, inputs, userFns);
     case 'Call':
-      return evalCall(expr, config, env, inputs);
+      return evalCall(expr, config, env, inputs, userFns);
+    case 'Block':
+      return evalBlock(expr, config, env, inputs, userFns);
   }
+}
+
+async function evalBlock(
+  block: BlockExpr,
+  config: LangConfig,
+  env: Map<string, Value>,
+  inputs: Record<string, Value>,
+  userFns: UserFnMap,
+): Promise<Value> {
+  let last: Value = undefined;
+  for (const s of block.statements) {
+    last = await execBlockStatement(s, config, env, inputs, userFns);
+  }
+  return last;
+}
+
+async function execBlockStatement(
+  stmt: BlockStatement,
+  config: LangConfig,
+  env: Map<string, Value>,
+  inputs: Record<string, Value>,
+  userFns: UserFnMap,
+): Promise<Value> {
+  if (stmt.kind === 'Assign') {
+    const v = await evalExpr(stmt.value, config, env, inputs, userFns);
+    env.set(stmt.name, v);
+    return undefined;
+  }
+  // ExprStmt
+  return evalExpr(stmt.expr, config, env, inputs, userFns);
 }
 
 async function evalString(
@@ -110,13 +161,14 @@ async function evalString(
   config: LangConfig,
   env: Map<string, Value>,
   inputs: Record<string, Value>,
+  userFns: UserFnMap,
 ): Promise<string> {
   const out: string[] = [];
   for (const part of s.parts) {
     if (part.kind === 'text') {
       out.push(part.value);
     } else {
-      const v = await evalExpr(part.expr, config, env, inputs);
+      const v = await evalExpr(part.expr, config, env, inputs, userFns);
       out.push(stringify(v, part.span));
     }
   }
@@ -161,8 +213,9 @@ async function evalUnary(
   config: LangConfig,
   env: Map<string, Value>,
   inputs: Record<string, Value>,
+  userFns: UserFnMap,
 ): Promise<Value> {
-  const v = await evalExpr(expr.operand, config, env, inputs);
+  const v = await evalExpr(expr.operand, config, env, inputs, userFns);
   if (expr.op === '-') {
     if (typeof v !== 'number') {
       throw new GenbyRuntimeError(
@@ -181,9 +234,10 @@ async function evalBinary(
   config: LangConfig,
   env: Map<string, Value>,
   inputs: Record<string, Value>,
+  userFns: UserFnMap,
 ): Promise<Value> {
-  const l = await evalExpr(expr.left, config, env, inputs);
-  const r = await evalExpr(expr.right, config, env, inputs);
+  const l = await evalExpr(expr.left, config, env, inputs, userFns);
+  const r = await evalExpr(expr.right, config, env, inputs, userFns);
   switch (expr.op) {
     case '+': {
       if (typeof l === 'string' && typeof r === 'string') return l + r;
@@ -239,6 +293,7 @@ async function evalCall(
   config: LangConfig,
   env: Map<string, Value>,
   inputs: Record<string, Value>,
+  userFns: UserFnMap,
 ): Promise<Value> {
   const name = expr.callee;
 
@@ -250,14 +305,59 @@ async function evalCall(
     );
   }
 
+  // User-defined function? Save/overlay params in the shared env; body runs
+  // against the same environment so outer-variable mutations are visible.
+  const userFn = userFns.get(name);
+  if (userFn) {
+    if (expr.args.length !== userFn.params.length) {
+      throw new GenbyRuntimeError(
+        `'${name}' expects ${userFn.params.length} argument(s), got ${expr.args.length}`,
+        expr.calleeSpan,
+        'type',
+      );
+    }
+    // Eagerly evaluate caller args (user fns don't support laziness on params).
+    const argValues: Value[] = [];
+    for (const a of expr.args) {
+      argValues.push(await evalExpr(a, config, env, inputs, userFns));
+    }
+    const saved: Array<[string, Value | undefined, boolean]> = [];
+    for (let i = 0; i < userFn.params.length; i++) {
+      const p = userFn.params[i]!;
+      const had = env.has(p.name);
+      saved.push([p.name, env.get(p.name), had]);
+      env.set(p.name, argValues[i]!);
+    }
+    try {
+      return await evalBlock(userFn.body, config, env, inputs, userFns);
+    } finally {
+      for (const [pname, prev, had] of saved) {
+        if (had) env.set(pname, prev as Value);
+        else env.delete(pname);
+      }
+    }
+  }
+
   const spec = config.functions.get(name);
   if (!spec) {
     throw new GenbyRuntimeError(`Unknown function '${name}'`, expr.calleeSpan);
   }
 
-  const argValues: Value[] = [];
-  for (const a of expr.args) {
-    argValues.push(await evalExpr(a, config, env, inputs));
+  const argValues: HandlerArg[] = [];
+  for (let i = 0; i < expr.args.length; i++) {
+    const a = expr.args[i]!;
+    const argSpec =
+      i < spec.args.length
+        ? spec.args[i]
+        : spec.args.length > 0
+          ? spec.args[spec.args.length - 1]
+          : undefined;
+    if (argSpec?.lazy) {
+      const thunk = async () => evalExpr(a, config, env, inputs, userFns);
+      argValues.push(thunk);
+    } else {
+      argValues.push(await evalExpr(a, config, env, inputs, userFns));
+    }
   }
 
   try {
@@ -339,6 +439,7 @@ function evalConst(
     }
     case 'Binary':
     case 'Call':
+    case 'Block':
       throw new GenbyRuntimeError(
         `Directive arguments must be constants`,
         expr.span,

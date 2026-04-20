@@ -22,7 +22,11 @@ export interface Directive {
   span: SourceSpan;
 }
 
-export type Statement = AssignStatement | ExprStatement | ReturnStatement;
+export type Statement =
+  | AssignStatement
+  | ExprStatement
+  | ReturnStatement
+  | UserFunDefStatement;
 
 export interface AssignStatement {
   kind: 'Assign';
@@ -35,6 +39,21 @@ export interface AssignStatement {
 export interface ExprStatement {
   kind: 'ExprStmt';
   expr: Expression;
+  span: SourceSpan;
+}
+
+export interface FunctionParam {
+  name: string;
+  span: SourceSpan;
+}
+
+/** User-defined Genby function. Top-level only; hoisted before execution. */
+export interface UserFunDefStatement {
+  kind: 'UserFunDef';
+  name: string;
+  nameSpan: SourceSpan;
+  params: FunctionParam[];
+  body: BlockExpr;
   span: SourceSpan;
 }
 
@@ -52,7 +71,21 @@ export type Expression =
   | Identifier
   | UnaryExpr
   | BinaryExpr
-  | CallExpr;
+  | CallExpr
+  | BlockExpr;
+
+/**
+ * Parenthesised sequence of statements: `(stmt1 stmt2 ... lastExpr)`.
+ * Value = value of the last statement if it's an ExprStmt, else VOID.
+ * A plain grouped expression `(expr)` is a single-ExprStmt block.
+ */
+export interface BlockExpr {
+  kind: 'Block';
+  statements: BlockStatement[];
+  span: SourceSpan;
+}
+
+export type BlockStatement = AssignStatement | ExprStatement;
 
 export interface StringPartText {
   kind: 'text';

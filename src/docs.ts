@@ -83,7 +83,7 @@ A program is a list of assignments and calls that always ends with \`RETURN(...)
 
 ### Types
 
-\`STR\`, \`NUM\`, \`BUL\`, \`ENUM\`. There are no boolean literals — \`BUL\` only comes out of comparisons.
+\`STR\`, \`NUM\`, \`BUL\`, \`ENUM\`. There are no boolean literals — \`BUL\` only comes out of comparisons. A function may declare an argument as \`ANY\` to accept a value of any type (useful for coercion helpers).
 
 ### Operators
 
@@ -196,6 +196,7 @@ function renderArgsList(args: ArgSpec[]): string {
       const tags: string[] = [];
       if (a.rest) tags.push('variadic');
       if (a.optional) tags.push('optional');
+      if (a.lazy) tags.push('lazy');
       const tagStr = tags.length ? ` _(${tags.join(', ')})_` : '';
       const desc = a.describe ? ` — ${a.describe.trim()}` : '';
       return `- \`${a.name}\`: \`${t}\`${tagStr}${desc}`;

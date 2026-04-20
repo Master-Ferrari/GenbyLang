@@ -58,6 +58,7 @@ export function highlightToHtml(input: HighlightInput): string {
       case 'IDENT': {
         const cat = identInfo.get(tok.start);
         if (cat === 'function_name') return 'genby-tok-function';
+        if (cat === 'user_function') return 'genby-tok-function';
         if (cat === 'directive_name') return 'genby-tok-directive';
         if (cat === 'enum_value') return 'genby-tok-enum';
         if (cat === 'external_var') return 'genby-tok-ext-var';

@@ -4,10 +4,13 @@ import type {
   AssignStatement,
   BinaryExpr,
   BinaryOp,
+  BlockExpr,
+  BlockStatement,
   CallExpr,
   Directive,
   ExprStatement,
   Expression,
+  FunctionParam,
   Identifier,
   NumberLiteral,
   Program,
@@ -17,6 +20,7 @@ import type {
   StringLiteral,
   StringPart,
   UnaryExpr,
+  UserFunDefStatement,
 } from './ast.js';
 
 export interface ParseResult {
@@ -169,9 +173,13 @@ class Parser {
   }
 
   private parseStatement(): Statement {
-    // Lookahead: IDENT EQ => Assign. IDENT ( => Call stmt or Return. Otherwise Expression stmt.
+    // Lookahead: IDENT EQ => Assign. IDENT ( ... ) EQ => user function def.
+    // IDENT ( => Call stmt or Return. Otherwise Expression stmt.
     if (this.check('IDENT') && this.checkAt(1, 'EQ')) {
       return this.parseAssign();
+    }
+    if (this.check('IDENT') && this.isUserFunDefAhead()) {
+      return this.parseUserFunDef();
     }
     // RETURN(...) looks like a call; we detect by name after parsing.
     const expr = this.parseExpression();
@@ -237,6 +245,144 @@ class Parser {
         length: value.span.end - nameTok.start,
       },
     };
+  }
+
+  /**
+   * Look ahead (without consuming) to decide if the current IDENT starts a
+   * user function definition: IDENT '(' [IDENT (',' IDENT)*] ')' '='.
+   * Whitespace/newlines inside the parameter list are ignored; EQ must
+   * immediately follow the closing ')' (no NEWLINE between them).
+   */
+  private isUserFunDefAhead(): boolean {
+    if (!this.checkAt(1, 'LPAREN')) return false;
+    let i = 2;
+    // Scan param list: allow IDENT (COMMA IDENT)*, with NEWLINE/COMMENT
+    // treated as whitespace. Anything else inside the parens => not a fn def.
+    // First, skip possible leading whitespace.
+    while (
+      this.peek(i).kind === 'NEWLINE' ||
+      this.peek(i).kind === 'COMMENT'
+    ) {
+      i += 1;
+    }
+    if (this.peek(i).kind === 'RPAREN') {
+      i += 1;
+    } else {
+      if (this.peek(i).kind !== 'IDENT') return false;
+      i += 1;
+      while (true) {
+        while (
+          this.peek(i).kind === 'NEWLINE' ||
+          this.peek(i).kind === 'COMMENT'
+        ) {
+          i += 1;
+        }
+        if (this.peek(i).kind === 'RPAREN') {
+          i += 1;
+          break;
+        }
+        if (this.peek(i).kind !== 'COMMA') return false;
+        i += 1;
+        while (
+          this.peek(i).kind === 'NEWLINE' ||
+          this.peek(i).kind === 'COMMENT'
+        ) {
+          i += 1;
+        }
+        if (this.peek(i).kind !== 'IDENT') return false;
+        i += 1;
+      }
+    }
+    return this.peek(i).kind === 'EQ';
+  }
+
+  private parseUserFunDef(): UserFunDefStatement {
+    const nameTok = this.expect('IDENT');
+    this.expect('LPAREN', `Expected '(' after function name`);
+    const params: FunctionParam[] = [];
+    this.skipLineBreaks();
+    if (!this.check('RPAREN')) {
+      const first = this.expect('IDENT', 'Expected parameter name');
+      params.push({ name: first.value, span: tokenSpan(first) });
+      this.skipLineBreaks();
+      while (this.match('COMMA')) {
+        this.skipLineBreaks();
+        const p = this.expect('IDENT', 'Expected parameter name');
+        params.push({ name: p.value, span: tokenSpan(p) });
+        this.skipLineBreaks();
+      }
+    }
+    this.skipLineBreaks();
+    this.expect('RPAREN', `Expected ')' after parameter list`);
+    this.expect('EQ', `Expected '=' after function parameter list`);
+    // Body must be a parenthesised block.
+    if (!this.check('LPAREN')) {
+      const t = this.peek();
+      this.addError(
+        t,
+        `Expected '(' to start function body`,
+        'syntax',
+      );
+      throw new ParseError('missing function body', t);
+    }
+    const body = this.parseBlock();
+    return {
+      kind: 'UserFunDef',
+      name: nameTok.value,
+      nameSpan: tokenSpan(nameTok),
+      params,
+      body,
+      span: {
+        start: nameTok.start,
+        end: body.span.end,
+        line: nameTok.line,
+        column: nameTok.column,
+        length: body.span.end - nameTok.start,
+      },
+    };
+  }
+
+  /**
+   * Parse `( stmt* )`. Statement separator is implicit: after each fully-
+   * parsed statement we skip NEWLINE/COMMENT and, if the next token is not
+   * ')', start the next statement. Single-expression blocks `(expr)` are
+   * unwrapped by the caller at expression level to preserve old semantics.
+   */
+  private parseBlock(): BlockExpr {
+    const openTok = this.expect('LPAREN');
+    const statements: BlockStatement[] = [];
+    this.skipLineBreaks();
+    while (!this.check('RPAREN') && !this.check('EOF')) {
+      const stmt = this.parseBlockStatement();
+      statements.push(stmt);
+      this.skipLineBreaks();
+    }
+    const closeTok = this.expect('RPAREN', `Expected ')'`);
+    return {
+      kind: 'Block',
+      statements,
+      span: {
+        start: openTok.start,
+        end: closeTok.end,
+        line: openTok.line,
+        column: openTok.column,
+        length: closeTok.end - openTok.start,
+      },
+    };
+  }
+
+  private parseBlockStatement(): BlockStatement {
+    // Nested user-fn defs are disallowed — only Assign or ExprStmt.
+    if (this.check('IDENT') && this.checkAt(1, 'EQ')) {
+      return this.parseAssign();
+    }
+    const expr = this.parseExpression();
+    const stmt: ExprStatement = {
+      kind: 'ExprStmt',
+      expr,
+      span: expr.span,
+    };
+    return stmt;
   }
 
   // ------- Expressions -------
@@ -347,12 +493,16 @@ class Parser {
         return id;
       }
       case 'LPAREN': {
-        this.advance();
-        this.skipLineBreaks();
-        const inner = this.parseExpression();
-        this.skipLineBreaks();
-        this.expect('RPAREN', `Expected ')'`);
-        return inner;
+        const block = this.parseBlock();
+        // Preserve old parenthesised-expression semantics for the common
+        // single-expression case: unwrap to the inner expression.
+        if (
+          block.statements.length === 1 &&
+          block.statements[0]!.kind === 'ExprStmt'
+        ) {
+          return block.statements[0]!.expr;
+        }
+        return block;
       }
       default: {
         this.addError(tok, `Unexpected token '${tok.text}'`, 'syntax');
