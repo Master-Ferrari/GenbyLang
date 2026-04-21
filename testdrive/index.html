@@ -1,667 +1,862 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8" />
-<title>genby</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-    /* ==========================================================
-       tokens
-       ==========================================================
-       bg-app      #0b0c0e     page background
-       bg-panel    #111216     panel surface
-       bg-input    #0b0c10     input surface
-       bg-chrome   #12141a     card chrome / head bars
-       bg-btn      #171923     button surface
-       border      #272a30     panel border
-       border-in   #2b2f36     input border
-       border-hi   #3a3f48     hover border
-       accent      #f0a868     warm amber (primary accent)
-       accent-2    #c29bff     lavender (secondary accent)
-       accent-3    #7ee08c     mint (strings / ok)
-       text        #e5e7eb     primary text
-       text-soft   #c8cdd5     body text
-       text-muted  #9aa3af     labels / meta
-       text-dim    #6b7280     empty state
-       text-faint  #4b5563     footer hints
-       error       #ef4444
-       ========================================================== */
+    <meta charset="utf-8" />
+    <title>genby</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            outline: none;
+        }
 
-    *, *::before, *::after {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-        outline: none;
-    }
+        :root {
+            color-scheme: dark;
 
-    :root {
-        color-scheme: dark;
+            --border-radius: 0px;
 
-        /* surfaces */
-        --bg-app: #0b0c0e;
-        --bg-panel: #111216;
-        --bg-input: #0b0c10;
-        --bg-chrome: #12141a;
-        --bg-btn: #12141a;
-        --bg-btn-hover: #1b1e28;
-        --bg-btn-primary: #1b1b1b;
-        --bg-btn-primary-hover: #242424;
-        --bg-pre: #08090c;
-        --bg-popup-selected: #1e2230;
+            --bg-app: #0b0c0e;
+            --bg-panel: #111216;
+            --bg-input: #0b0c10;
+            --bg-chrome: #12141a;
+            --bg-btn: #12141a;
+            --bg-btn-hover: #1b1e28;
+            --bg-btn-primary: #1b1b1b;
+            --bg-btn-primary-hover: #242424;
+            --bg-pre: #08090c;
+            --bg-popup-selected: #1e2230;
 
-        /* borders */
-        --border: #272a30;
-        --border-in: #2b2f36;
-        --border-hi: #3a3f48;
-        --border-pre: #222529;
+            --border: #272a30;
+            --border-in: #2b2f36;
+            --border-hi: #3a3f48;
+            --border-pre: #222529;
 
-        /* accents */
-        --accent: #e33183;
-        --accent-2: #8f67aa;
-        --accent-3: #00a09a;
-        --accent-ext-var: #8f67aa;
+            --accent: #e33183;
+            --accent-2: #8f67aa;
+            --accent-3: #00a09a;
+            --accent-ext-var: #8f67aa;
 
-        /* text */
-        --text: #e5e7eb;
-        --text-soft: #c8cdd5;
-        --text-muted: #9aa3af;
-        --text-dim: #6b7280;
-        --text-faint: #4b5563;
-        --text-white: #ffffff;
+            --text: #e5e7eb;
+            --text-soft: #c8cdd5;
+            --text-muted: #9aa3af;
+            --text-dim: #6b7280;
+            --text-faint: #4b5563;
+            --text-white: #ffffff;
 
-        /* scrollbars */
-        --scroll-thumb: #656b76;
-        --scroll-thumb-hover: #7a818d;
-        --scroll-track: #111316;
+            --scroll-thumb: #656b76;
+            --scroll-thumb-hover: #7a818d;
+            --scroll-track: #111316;
 
-        /* state */
-        --error: #ef4444;
+            --error: #ef4444;
 
-        /* rgba tints */
-        --accent-a06: rgba(227, 49, 131, 0.06);
-        --accent-a08: rgba(227, 49, 131, 0.08);
-        --accent-a28: rgba(227, 49, 131, 0.28);
-        --accent-a30: rgba(227, 49, 131, 0.3);
-        --accent-a35: rgba(227, 49, 131, 0.35);
-        --accent-a60: rgba(227, 49, 131, 0.6);
-        --accent-2-a04: rgba(143, 103, 170, 0.04);
-        --accent-3-a08: rgba(0, 160, 154, 0.08);
-        --accent-3-a30: rgba(0, 160, 154, 0.3);
-        --error-a30: rgba(239, 68, 68, 0.3);
-    }
+            --accent-a08: rgba(227, 49, 131, 0.08);
+            --accent-a28: rgba(227, 49, 131, 0.28);
+            --accent-a30: rgba(227, 49, 131, 0.3);
+            --accent-a35: rgba(227, 49, 131, 0.35);
+            --accent-a60: rgba(227, 49, 131, 0.6);
+            --accent-3-a08: rgba(0, 160, 154, 0.08);
+            --accent-3-a30: rgba(0, 160, 154, 0.3);
+            --error-a30: rgba(239, 68, 68, 0.3);
 
-    html {
-        background: var(--bg-app);
-        scrollbar-width: thin;
-        scrollbar-color: var(--scroll-thumb) var(--bg-app);
-    }
+            /* typography — px only, no relative units */
+            --fs-hero: 42px;
+            --fs-h1: 16px;
+            --fs-body: 14px;
+            --fs-code: 13px;
+            --fs-sm: 12px;
+            --fs-xs: 11px;
+            --fs-xxs: 10px;
 
-    body {
-        background:
-            radial-gradient(ellipse at 50% -20%, var(--accent-a06), transparent 60%),
-            radial-gradient(ellipse at 100% 110%, var(--accent-2-a04), transparent 60%),
-            var(--bg-app);
-        background-attachment: fixed;
-        color: var(--text);
-        font-size: 14px;
-        font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
-        padding: 32px 20px 40px;
-        min-height: 100vh;
-        user-select: none;
-    }
+            --lh-tight: 14px;
+            --lh-sm: 18px;
+            --lh-code: 20px;
+            --lh-body: 21px;
 
-    .page {
-        max-width: 880px;
-        margin: 0 auto;
-        display: grid;
-        gap: 4px;
-    }
+            --ls-tight: -1px;
+            --ls-meta: 0.5px;
+            --ls-wide: 1px;
+            --ls-wider: 1.2px;
+        }
 
-    /* ---------- hero ---------- */
-    .hero {
-        padding: 12px 2px 18px;
-        border-bottom: 1px dashed var(--border);
-        margin-bottom: 18px;
-    }
-    .hero-brand {
-        display: flex;
-        align-items: flex-end;
-        gap: 12px;
-        line-height: 1;
-    }
-    .install-btn {
-        margin-left: auto;
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        padding: 8px 12px;
-        border: 1px solid var(--border-in);
-        border-radius: 6px;
-        background: var(--bg-btn);
-        color: var(--text);
-        cursor: pointer;
-        font-family: inherit;
-        font-size: 0.82rem;
-        line-height: 1;
-    }
-    .install-btn:hover { border-color: var(--border-hi); background: var(--bg-btn-hover); }
-    .install-btn:active { filter: brightness(0.95); }
-    .install-btn .install-prompt { color: var(--accent); }
-    .install-btn .install-cmd { color: var(--text); }
-    .install-btn .install-label {
-        color: var(--text-dim);
-        font-size: 0.68rem;
-        letter-spacing: 0.12em;
-        /* text-transform: uppercase; */
-        padding-left: 8px;
-        width: 50px;
-        border-left: 1px solid var(--border-in);
-    }
-    .install-btn.copied .install-label { color: var(--accent-3); }
-    .hero-name {
-        font-size: 2.6rem;
-        font-weight: 600;
-        letter-spacing: -0.02em;
-        color: var(--text);
-    }
-    .hero-name .lang { color: var(--accent); font-style: italic; }
-    .hero-version {
-        font-size: 0.8rem;
-        color: var(--text-dim);
-        padding-bottom: 6px;
-    }
-    .hero-tagline {
-        margin-top: 10px;
-        color: var(--text-muted);
-        font-size: 0.95rem;
-    }
-    .hero-tagline .c { color: var(--text-dim); }
-    .hero-meta {
-        margin-top: 16px;
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        font-size: 0.78rem;
-        color: var(--text-dim);
-        flex-wrap: wrap;
-    }
-    .hero-meta .sep {
-        width: 6px; height: 6px;
-        border-radius: 50%;
-        background: var(--border-in);
-    }
-    .hero-meta .key { color: var(--text-muted); }
-    .hero-meta .val { color: var(--accent); }
+        html {
+            background: var(--bg-app);
+            scrollbar-width: thin;
+            scrollbar-color: var(--scroll-thumb) var(--bg-app);
+        }
 
-    /* ---------- step (numbered rail) ---------- */
-    .step {
-        display: grid;
-        grid-template-columns: 52px 1fr;
-        gap: 0;
-    }
-    .step-rail {
-        border-right: 1px solid var(--border);
-        padding: 10px 14px 22px 0;
-        text-align: right;
-        color: var(--text-faint);
-        font-size: 0.75rem;
-        letter-spacing: 0.12em;
-    }
-    .step-num {
-        display: block;
-        font-size: 1rem;
-        color: var(--accent);
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        margin-bottom: 4px;
-    }
-    .step-tag {
-        writing-mode: vertical-rl;
-        transform: rotate(180deg);
-        margin-top: 10px;
-        color: var(--border-hi);
-        font-size: 0.65rem;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-    }
-    .step-body {
-        padding: 6px 0 22px 20px;
-        display: grid;
-        gap: 12px;
-    }
-    .step-header {
-        display: flex;
-        align-items: baseline;
-        gap: 12px;
-    }
-    .step-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text);
-        letter-spacing: -0.005em;
-    }
-    .step-rule {
-        flex: 1;
-        height: 1px;
-        border-bottom: 1px dashed var(--border-in);
-        transform: translateY(-4px);
-    }
-    .step-desc {
-        color: var(--text-muted);
-        font-size: 0.82rem;
-        margin-top: -4px;
-        line-height: 1.5;
-    }
-    .step-desc code {
-        color: var(--accent);
-        background: var(--accent-a08);
-        padding: 0 4px;
-        border-radius: 3px;
-        font-size: 0.78rem;
-    }
+        body {
+            background: var(--bg-app);
+            color: var(--text);
+            font-size: var(--fs-body);
+            font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+            padding: 32px 20px 40px;
+            min-height: 100vh;
+            user-select: none;
+        }
 
-    /* ---------- code card (filename chrome) ---------- */
-    .card {
-        border: 1px solid var(--border-in);
-        border-radius: 8px;
-        background: var(--bg-input);
-        overflow: hidden;
-    }
-    .card-head {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 7px 12px;
-        border-bottom: 1px solid var(--border-in);
-        background: var(--bg-chrome);
-        font-size: 0.72rem;
-        letter-spacing: 0.04em;
-        color: var(--text-muted);
-    }
-    .card-head .bullets span {
-        width: 8px; height: 8px;
-        border-radius: 50%;
-        background: var(--border-in);
-    }
-    .card-head .filename {
-        flex: 1;
-        color: var(--text-muted);
-    }
-    .card-head .filename .ext { color: var(--accent); }
-    .card-head .right {
-        color: var(--text-faint);
-        font-size: 0.68rem;
-        letter-spacing: 0.1em;
-    }
+        .page {
+            max-width: 820px;
+            margin: 0 auto;
+            display: grid;
+            gap: 32px;
+        }
 
-    /* ---------- code editor (overlay highlight) ---------- */
-    .code-edit {
-        position: relative;
-        background: var(--bg-input);
-    }
-    .code-highlight, .code-input {
-        margin: 0;
-        padding: 12px 14px;
-        font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
-        font-size: 12.5px;
-        line-height: 1.6;
-        white-space: pre;
-        tab-size: 2;
-        box-sizing: border-box;
-    }
-    .code-highlight {
-        position: absolute;
-        inset: 0;
-        color: var(--text);
-        pointer-events: none;
-        overflow: hidden;
-        z-index: 1;
-    }
-    .code-input {
-        position: relative;
-        display: block;
-        width: 100%;
-        min-height: 240px;
-        border: none;
-        background: transparent;
-        color: transparent;
-        caret-color: var(--accent);
-        resize: vertical;
-        z-index: 2;
-        overflow: auto;
-        user-select: text;
-        scrollbar-width: thin;
-        scrollbar-color: var(--scroll-thumb) var(--scroll-track);
-    }
-    .code-input::selection { background: var(--accent-a28); color: transparent; }
-    .code-input::-webkit-scrollbar { width: 10px; height: 10px; }
-    .code-input::-webkit-scrollbar-track { background: var(--scroll-track); }
-    .code-input::-webkit-scrollbar-thumb {
-        background: var(--scroll-thumb);
-        border-radius: 8px;
-        border: 2px solid var(--scroll-track);
-    }
-    .code-input::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
-    .code-input::-webkit-scrollbar-corner {
-  background: transparent;
-}
+        /* ---------- hero ---------- */
+        .hero {
+            padding: 12px 2px 18px;
+        }
 
-    /* ---------- js tokens ---------- */
-    .tok-comment { color: var(--text-dim); font-style: italic; }
-    .tok-string  { color: var(--accent-3); }
-    .tok-number  { color: var(--accent); }
-    .tok-keyword { color: var(--accent-2); }
-    .tok-cap     { color: var(--accent); }
-    .tok-ident   { color: var(--text); }
-    .tok-op      { color: var(--text-muted); }
-    .tok-punct   { color: var(--text-dim); }
+        .hero-brand {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            line-height: var(--lh-tight);
+        }
 
-    /* ---------- buttons ---------- */
-    .btn-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-    .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 14px;
-        border: 1px solid var(--border-in);
-        border-radius: 6px;
-        background: var(--bg-btn);
-        color: var(--text);
-        cursor: pointer;
-        font-size: 0.85rem;
-        font-family: inherit;
-        line-height: 1;
-    }
-    .btn:hover { border-color: var(--border-hi); background: var(--bg-btn-hover); }
-    .btn:active { filter: brightness(0.95); }
-    .btn:disabled { opacity: 0.4; cursor: default; }
-    .btn .caret { color: var(--accent); font-weight: 600; }
-    .btn-primary {
-        border-color: var(--accent-a35);
-        background: var(--bg-btn-primary);
-        color: var(--accent);
-    }
-    .btn-primary:hover {
-        border-color: var(--accent-a60);
-        background: var(--bg-btn-primary-hover);
-    }
+        .install-btn {
+            margin-left: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border: 1px solid var(--border-in);
+            border-radius: var(--border-radius);
+            background: var(--bg-btn);
+            color: var(--text);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: var(--fs-sm);
+            line-height: var(--lh-tight);
+            transform: translate(2px, 16px);
+        }
 
-    /* ---------- status badge ---------- */
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 3px 10px;
-        border: 1px solid var(--border-in);
-        border-radius: 999px;
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        background: var(--bg-panel);
-        font-family: inherit;
-        line-height: 1.3;
-        user-select: text;
-    }
-    .badge::before {
-        content: "";
-        width: 6px; height: 6px;
-        border-radius: 50%;
-        background: var(--scroll-thumb);
-    }
-    .badge.ok     { color: var(--accent-3); border-color: var(--accent-3-a30); }
-    .badge.ok::before    { background: var(--accent-3); }
-    .badge.err    { color: var(--error); border-color: var(--error-a30); }
-    .badge.err::before   { background: var(--error); }
-    .badge.run    { color: var(--accent); border-color: var(--accent-a30); }
-    .badge.run::before   { background: var(--accent); animation: pulse 1s infinite; }
-    .badge-msg {
-        color: var(--text-muted);
-        font-size: 0.78rem;
-        white-space: pre-wrap;
-        user-select: text;
-    }
-    .badge-msg.err { color: var(--error); }
-    @keyframes pulse { 50% { opacity: 0.35; } }
+        .install-btn:hover {
+            border-color: var(--border-hi);
+            background: var(--bg-btn-hover);
+        }
 
-    /* ---------- foldable card (docs) ---------- */
-    details.card > summary.card-head {
-        cursor: pointer;
-        list-style: none;
-        user-select: none;
-    }
-    details.card > summary.card-head::-webkit-details-marker { display: none; }
-    details.card > summary.card-head::before {
-        content: "▸";
-        color: var(--accent);
-        font-size: 14px;
-        transition: transform 0.15s;
-    }
-    details.card[open] > summary.card-head::before { transform: rotate(90deg); }
-    details.card > summary.card-head:hover { color: var(--text); }
-    details.card:not([open]) > summary.card-head { border-bottom-color: transparent; }
-    .card-head .count {
-        color: var(--text-dim);
-        font-size: 0.7rem;
-        letter-spacing: 0.08em;
-    }
+        .install-btn:active {
+            filter: brightness(0.95);
+        }
 
-    /* ---------- markdown rendering ---------- */
-    .md-render {
-        padding: 14px 18px 18px;
-        font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
-        font-size: 12.5px;
-        line-height: 1.65;
-        color: var(--text-soft);
-        max-height: 440px;
-        overflow: auto;
-        user-select: text;
-        scrollbar-width: thin;
-        scrollbar-color: var(--scroll-thumb) var(--scroll-track);
-    }
-    .md-render::-webkit-scrollbar { width: 10px; }
-    .md-render::-webkit-scrollbar-track { background: var(--scroll-track); }
-    .md-render::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 8px; border: 2px solid var(--scroll-track); }
-    .md-render > :first-child { margin-top: 0; }
-    .md-render h1, .md-render h2, .md-render h3, .md-render h4 {
-        font-weight: 600;
-        color: var(--text);
-        margin: 16px 0 6px;
-    }
-    .md-render h1 { font-size: 1.15rem; color: var(--accent); margin-top: 0; }
-    .md-render h1::before { content: "# "; color: var(--text-faint); font-weight: 400; }
-    .md-render h2 {
-        font-size: 1rem;
-        border-bottom: 1px dashed var(--border);
-        padding-bottom: 4px;
-        margin-top: 18px;
-    }
-    .md-render h2::before { content: "## "; color: var(--text-faint); font-weight: 400; }
-    .md-render h3 { font-size: 0.95rem; color: var(--accent-2); }
-    .md-render h3::before { content: "### "; color: var(--text-faint); font-weight: 400; }
-    .md-render h4 { font-size: 0.88rem; color: var(--text-muted); }
-    .md-render p { margin: 6px 0; }
-    .md-render ul { margin: 6px 0 6px 4px; padding-left: 0; list-style: none; }
-    .md-render li { margin: 3px 0; padding-left: 16px; position: relative; }
-    .md-render li::before {
-        content: "·";
-        position: absolute;
-        left: 4px;
-        color: var(--accent);
-    }
-    .md-render code {
-        color: var(--accent-3);
-        background: var(--accent-3-a08);
-        padding: 0 5px;
-        border-radius: 3px;
-        font-size: 0.92em;
-    }
-    .md-render pre {
-        background: var(--bg-pre);
-        border: 1px solid var(--border-pre);
-        border-radius: 4px;
-        padding: 10px 12px;
-        overflow: auto;
-        margin: 8px 0;
-        color: var(--text);
-        scrollbar-width: thin;
-        scrollbar-color: var(--scroll-thumb) var(--scroll-track);
-    }
-    .md-render pre code {
-        background: none;
-        padding: 0;
-        color: var(--text);
-    }
-    .md-render table {
-        border-collapse: collapse;
-        margin: 10px 0;
-        font-size: 0.85rem;
-        width: 100%;
-    }
-    .md-render th, .md-render td {
-        border: 1px solid var(--border-in);
-        padding: 5px 10px;
-        text-align: left;
-        vertical-align: top;
-    }
-    .md-render th {
-        background: var(--bg-chrome);
-        color: var(--accent);
-        font-weight: 600;
-        letter-spacing: 0.02em;
-    }
-    .md-render strong { color: var(--text); font-weight: 600; }
-    .md-render em { color: var(--accent-2); font-style: normal; }
-    .md-placeholder {
-        padding: 18px;
-        color: var(--text-dim);
-        font-size: 0.85rem;
-    }
+        .install-btn .install-prompt {
+            color: var(--accent);
+        }
 
-    /* ---------- genby input host (dark theme vars) ---------- */
-    .genby-host {
-        --genby-font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
-        --genby-font-size: 13px;
-        --genby-line-height: 1.6;
-        --genby-color: var(--text);
-        --genby-bg: var(--bg-input);
-        --genby-border-color: transparent;
-        --genby-radius: 0;
-        --genby-min-height: 9em;
-        --genby-caret: var(--accent);
-        --genby-selection: var(--accent-a28);
-        --genby-popup-bg: var(--bg-chrome);
-        --genby-popup-border: var(--border-in);
-        --genby-popup-selected-bg: var(--bg-popup-selected);
-        --genby-popup-selected-color: var(--text-white);
-        --genby-color-string: var(--accent-3);
-        --genby-color-number: var(--accent);
-        --genby-color-comment: var(--text-dim);
-        --genby-color-directive: var(--accent-2);
-        --genby-color-function: var(--accent);
-        --genby-color-enum: var(--accent-3);
-        --genby-color-ext-var: var(--accent-ext-var);
-        --genby-color-local-var: var(--text);
-        --genby-color-ident: var(--text);
-        --genby-color-op: var(--text-muted);
-        --genby-color-punct: var(--text-dim);
-        --genby-color-interp: var(--accent-2);
-        --genby-error-color: var(--error);
-    }
-    .genby-host .genby-input { user-select: text; }
-    .card .genby-host .genby-input { border: none; border-radius: 0; }
+        .install-btn .install-cmd {
+            color: var(--text);
+        }
 
-    /* ---------- run output ---------- */
-    .output-pre {
-        padding: 12px 14px;
-        font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
-        font-size: 12.5px;
-        line-height: 1.55;
-        white-space: pre-wrap;
-        user-select: text;
-        min-height: 54px;
-        color: var(--text);
-    }
-    .output-pre.empty { color: var(--text-dim); }
-    .status-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
+        .install-btn .install-label {
+            color: var(--text-dim);
+            font-size: var(--fs-xxs);
+            letter-spacing: var(--ls-wider);
+            padding-left: 8px;
+            width: 50px;
+            border-left: 1px solid var(--border-in);
+        }
 
-    /* ---------- footer ---------- */
-    .footer {
-        margin-top: 24px;
-        padding: 16px 0 4px;
-        border-top: 1px dashed var(--border);
-        display: flex;
-        justify-content: space-between;
-        color: var(--text-faint);
-        font-size: 0.72rem;
-        letter-spacing: 0.04em;
-    }
-    .footer .left { color: var(--text-dim); }
-    .footer .left .sep { color: var(--border-in); padding: 0 6px; }
-    .footer .right { color: var(--text-faint); }
-</style>
+        .install-btn.copied .install-label {
+            color: var(--accent-3);
+        }
+
+        .hero-name {
+            font-size: var(--fs-hero);
+            font-weight: 600;
+            letter-spacing: var(--ls-tight);
+            color: var(--text);
+        }
+
+        .hero-name .lang {
+            color: var(--accent);
+            font-style: italic;
+        }
+
+        .hero-version {
+            font-size: var(--fs-sm);
+            color: var(--text-dim);
+            padding-bottom: 6px;
+        }
+
+        .hero-tagline {
+            margin-top: 26px;
+            color: var(--text-muted);
+            font-size: var(--fs-body);
+        }
+
+        .hero-tagline .c {
+            color: var(--text-dim);
+        }
+
+        .hero-meta {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: var(--fs-xs);
+            color: var(--text-dim);
+            flex-wrap: wrap;
+        }
+
+        .hero-meta .key {
+            color: var(--text-muted);
+        }
+
+        .hero-meta .val {
+            color: var(--accent);
+        }
+
+        /* ---------- step ---------- */
+        .step {
+            display: grid;
+            gap: 10px;
+        }
+
+        .step-title {
+            font-size: var(--fs-xs);
+            font-weight: 500;
+            color: var(--text-muted);
+            letter-spacing: var(--ls-wide);
+            text-transform: lowercase;
+        }
+
+        .step-desc {
+            color: var(--text-muted);
+            font-size: var(--fs-sm);
+            line-height: var(--lh-sm);
+        }
+
+        .step-desc code {
+            color: var(--accent);
+            background: var(--accent-a08);
+            padding: 0 4px;
+            border-radius: var(--border-radius);
+            font-size: var(--fs-xs);
+        }
+
+        /* ---------- card ---------- */
+        .card {
+            border: 1px solid var(--border-in);
+            border-radius: var(--border-radius);
+            background: var(--bg-input);
+            overflow: hidden;
+        }
+
+        /* ---------- code editor (overlay highlight) ---------- */
+        .code-edit {
+            position: relative;
+            background: var(--bg-input);
+        }
+
+        .code-highlight,
+        .code-input {
+            margin: 0;
+            padding: 12px 14px;
+            font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+            font-size: var(--fs-code);
+            line-height: var(--lh-code);
+            white-space: pre;
+            tab-size: 2;
+            box-sizing: border-box;
+        }
+
+        .code-highlight {
+            position: absolute;
+            inset: 0;
+            color: var(--text);
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .code-input {
+            position: relative;
+            display: block;
+            width: 100%;
+            min-height: 240px;
+            border: none;
+            background: transparent;
+            color: transparent;
+            caret-color: var(--accent);
+            resize: vertical;
+            z-index: 2;
+            overflow: auto;
+            user-select: text;
+            scrollbar-width: thin;
+            scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+        }
+
+        .code-input::selection {
+            background: var(--accent-a28);
+            color: transparent;
+        }
+
+        .code-input,
+        .genby-host .genby-input__textarea {
+            resize: none;
+        }
+
+        .code-input,
+        .genby-host .genby-input__textarea,
+        .md-render,
+        .output-pre {
+            scrollbar-width: thin;
+            scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+        }
+
+        .code-input::-webkit-scrollbar,
+        .genby-host .genby-input__textarea::-webkit-scrollbar,
+        .md-render::-webkit-scrollbar,
+        .output-pre::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        .code-input::-webkit-scrollbar-track,
+        .genby-host .genby-input__textarea::-webkit-scrollbar-track,
+        .md-render::-webkit-scrollbar-track,
+        .output-pre::-webkit-scrollbar-track {
+            background: var(--scroll-track);
+            border-radius: var(--border-radius);
+        }
+
+        .code-input::-webkit-scrollbar-thumb,
+        .genby-host .genby-input__textarea::-webkit-scrollbar-thumb,
+        .md-render::-webkit-scrollbar-thumb,
+        .output-pre::-webkit-scrollbar-thumb {
+            background: var(--scroll-thumb);
+            border-radius: var(--border-radius);
+            border: 2px solid var(--scroll-track);
+        }
+
+        .code-input::-webkit-scrollbar-thumb:hover,
+        .genby-host .genby-input__textarea::-webkit-scrollbar-thumb:hover,
+        .md-render::-webkit-scrollbar-thumb:hover,
+        .output-pre::-webkit-scrollbar-thumb:hover {
+            background: var(--scroll-thumb-hover);
+        }
+
+        .code-input::-webkit-scrollbar-corner,
+        .genby-host .genby-input__textarea::-webkit-scrollbar-corner,
+        .md-render::-webkit-scrollbar-corner,
+        .output-pre::-webkit-scrollbar-corner {
+            background: var(--scroll-track);
+        }
+
+        .code-input::-webkit-scrollbar-button,
+        .genby-host .genby-input__textarea::-webkit-scrollbar-button {
+            display: none;
+            width: 0;
+            height: 0;
+            background: transparent;
+        }
+
+        .code-input::-webkit-resizer,
+        .genby-host .genby-input__textarea::-webkit-resizer {
+            display: none;
+        }
+
+        /* ---------- custom vertical resize handle (ported from ui-reference.html) ---------- */
+        .resizeHandle {
+            height: 10px;
+            cursor: ns-resize;
+            display: grid;
+            place-items: center;
+            background: #0f1115;
+            border-top: 1px solid var(--border-in);
+        }
+
+        .resizeHandle::before {
+            content: "";
+            width: 40px;
+            height: 3px;
+            border-radius: var(--border-radius);
+            background: #3a3f49;
+            transition: background 0.15s;
+        }
+
+        .resizeHandle:hover::before,
+        .resizeHandle.active::before,
+        .resizeHandle:active::before,
+        .resizeHandle:focus::before {
+            background: #4b5260;
+        }
+
+        /* ---------- js tokens ---------- */
+        .tok-comment {
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        .tok-string {
+            color: var(--accent-3);
+        }
+
+        .tok-number {
+            color: var(--accent);
+        }
+
+        .tok-keyword {
+            color: var(--accent-2);
+        }
+
+        .tok-cap {
+            color: var(--accent);
+        }
+
+        .tok-ident {
+            color: var(--text);
+        }
+
+        .tok-op {
+            color: var(--text-muted);
+        }
+
+        .tok-punct {
+            color: var(--text-dim);
+        }
+
+        /* ---------- buttons ---------- */
+        .btn-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border: 1px solid var(--border-in);
+            border-radius: var(--border-radius);
+            background: var(--bg-btn);
+            color: var(--text);
+            cursor: pointer;
+            font-size: var(--fs-sm);
+            font-family: inherit;
+            line-height: var(--lh-tight);
+        }
+
+        .btn:hover {
+            border-color: var(--border-hi);
+            background: var(--bg-btn-hover);
+        }
+
+        .btn:active {
+            filter: brightness(0.95);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        .btn .caret {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            border-color: var(--accent-a35);
+            background: var(--bg-btn-primary);
+            color: var(--accent);
+        }
+
+        .btn-primary:hover {
+            border-color: var(--accent-a60);
+            background: var(--bg-btn-primary-hover);
+        }
+
+        /* ---------- status badge ---------- */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 3px 10px;
+            border: 1px solid var(--border-in);
+            border-radius: var(--border-radius);
+            font-size: var(--fs-xs);
+            color: var(--text-muted);
+            background: var(--bg-panel);
+            font-family: inherit;
+            line-height: var(--lh-tight);
+            user-select: text;
+        }
+
+        .badge::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            border-radius: var(--border-radius);
+            background: var(--scroll-thumb);
+        }
+
+        .badge.ok {
+            color: var(--accent-3);
+            border-color: var(--accent-3-a30);
+        }
+
+        .badge.ok::before {
+            background: var(--accent-3);
+        }
+
+        .badge.err {
+            color: var(--error);
+            border-color: var(--error-a30);
+        }
+
+        .badge.err::before {
+            background: var(--error);
+        }
+
+        .badge.run {
+            color: var(--accent);
+            border-color: var(--accent-a30);
+        }
+
+        .badge.run::before {
+            background: var(--accent);
+        }
+
+        .badge-msg {
+            color: var(--text-muted);
+            font-size: var(--fs-xs);
+            white-space: pre-wrap;
+            user-select: text;
+        }
+
+        .badge-msg.err {
+            color: var(--error);
+        }
+
+        .meta {
+            color: var(--text-dim);
+            font-size: var(--fs-xs);
+            letter-spacing: var(--ls-meta);
+        }
+
+        /* ---------- foldable card (unified summary + chevron) ---------- */
+        details.card>summary {
+            cursor: pointer;
+            list-style: none;
+            user-select: none;
+            padding: 6px 14px;
+            font-size: var(--fs-xs);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        details.card>summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details.card>summary::before {
+            content: "▸";
+            color: var(--accent);
+            font-size: var(--fs-h1);
+            transition: transform 0.15s;
+        }
+
+        details.card[open]>summary::before {
+            transform: rotate(90deg);
+        }
+
+        details.card>summary:hover {
+            color: var(--text);
+        }
+
+        details.card[open]>summary {
+            border-bottom: 1px solid var(--border-in);
+        }
+
+        /* ---------- markdown rendering ---------- */
+        .md-render {
+            padding: 14px 18px 18px;
+            font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+            font-size: var(--fs-code);
+            line-height: var(--lh-body);
+            color: var(--text-soft);
+            height: 320px;
+            overflow: auto;
+            user-select: text;
+        }
+
+        .md-render> :first-child {
+            margin-top: 0;
+        }
+
+        .md-render h1,
+        .md-render h2,
+        .md-render h3,
+        .md-render h4 {
+            font-weight: 600;
+            color: var(--text);
+            margin: 16px 0 6px;
+        }
+
+        .md-render h1 {
+            font-size: var(--fs-h1);
+            color: var(--accent);
+            margin-top: 0;
+        }
+
+        .md-render h1::before {
+            content: "# ";
+            color: var(--text-faint);
+            font-weight: 400;
+        }
+
+        .md-render h2 {
+            font-size: var(--fs-body);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 4px;
+            margin-top: 18px;
+        }
+
+        .md-render h2::before {
+            content: "## ";
+            color: var(--text-faint);
+            font-weight: 400;
+        }
+
+        .md-render h3 {
+            font-size: var(--fs-code);
+            color: var(--accent-2);
+        }
+
+        .md-render h3::before {
+            content: "### ";
+            color: var(--text-faint);
+            font-weight: 400;
+        }
+
+        .md-render h4 {
+            font-size: var(--fs-sm);
+            color: var(--text-muted);
+        }
+
+        .md-render p {
+            margin: 6px 0;
+        }
+
+        .md-render ul {
+            margin: 6px 0 6px 4px;
+            padding-left: 0;
+            list-style: none;
+        }
+
+        .md-render li {
+            margin: 3px 0;
+            padding-left: 16px;
+            position: relative;
+        }
+
+        .md-render li::before {
+            content: "·";
+            position: absolute;
+            left: 4px;
+            color: var(--accent);
+        }
+
+        .md-render code {
+            color: var(--accent-3);
+            background: var(--accent-3-a08);
+            padding: 0 5px;
+            border-radius: var(--border-radius);
+            font-size: var(--fs-sm);
+        }
+
+        .md-render pre {
+            background: var(--bg-pre);
+            border: 1px solid var(--border-pre);
+            border-radius: 4px;
+            padding: 10px 12px;
+            overflow: auto;
+            margin: 8px 0;
+            color: var(--text);
+            scrollbar-width: thin;
+            scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+        }
+
+        .md-render pre code {
+            background: none;
+            padding: 0;
+            color: var(--text);
+        }
+
+        .md-render table {
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: var(--fs-sm);
+            width: 100%;
+        }
+
+        .md-render th,
+        .md-render td {
+            border: 1px solid var(--border-in);
+            padding: 5px 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .md-render th {
+            background: var(--bg-chrome);
+            color: var(--accent);
+            font-weight: 600;
+            letter-spacing: var(--ls-meta);
+        }
+
+        .md-render strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .md-render em {
+            color: var(--accent-2);
+            font-style: normal;
+        }
+
+        .md-placeholder {
+            padding: 18px;
+            color: var(--text-dim);
+            font-size: var(--fs-sm);
+        }
+
+        /* ---------- genby input host ---------- */
+        .genby-host {
+            --genby-font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+            --genby-font-size: var(--fs-code);
+            --genby-line-height: var(--lh-code);
+            --genby-color: var(--text);
+            --genby-bg: var(--bg-input);
+            --genby-border-color: transparent;
+            --genby-radius: 0;
+            --genby-min-height: 120px;
+            --genby-caret: var(--accent);
+            --genby-selection: var(--accent-a28);
+            --genby-popup-bg: var(--bg-chrome);
+            --genby-popup-border: var(--border-in);
+            --genby-popup-selected-bg: var(--bg-popup-selected);
+            --genby-popup-selected-color: var(--text-white);
+            --genby-color-string: var(--accent-3);
+            --genby-color-number: var(--accent);
+            --genby-color-comment: var(--text-dim);
+            --genby-color-directive: var(--accent-2);
+            --genby-color-function: var(--accent);
+            --genby-color-enum: var(--accent-3);
+            --genby-color-ext-var: var(--accent-ext-var);
+            --genby-color-local-var: var(--text);
+            --genby-color-ident: var(--text);
+            --genby-color-op: var(--text-muted);
+            --genby-color-punct: var(--text-dim);
+            --genby-color-interp: var(--accent-2);
+            --genby-error-color: var(--error);
+        }
+
+        .genby-host .genby-input {
+            user-select: text;
+        }
+
+        .card .genby-host .genby-input {
+            border: none;
+            border-radius: 0;
+        }
+
+        /* ---------- run output ---------- */
+        .output-pre {
+            padding: 12px 14px;
+            font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+            font-size: var(--fs-code);
+            line-height: var(--lh-code);
+            white-space: pre-wrap;
+            user-select: text;
+            height: 140px;
+            overflow: auto;
+            color: var(--text);
+        }
+
+        .output-pre.empty {
+            color: var(--text-dim);
+        }
+
+        /* ---------- footer ---------- */
+        .footer {
+            margin-top: 16px;
+            padding: 16px 0 4px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-faint);
+            font-size: var(--fs-xxs);
+            letter-spacing: var(--ls-meta);
+        }
+
+        .footer .left {
+            color: var(--text-dim);
+        }
+
+        .footer .left .sep {
+            color: var(--border-in);
+            padding: 0 6px;
+        }
+
+        .footer .right {
+            color: var(--text-faint);
+        }
+    </style>
 </head>
+
 <body>
 
-<div class="page">
+    <div class="page">
 
-    <!-- hero -->
-    <div class="hero">
-        <div class="hero-brand">
-            <div class="hero-name">genby<span class="lang">lang</span></div>
-            <div class="hero-version">v1.0.0</div>
-            <button class="install-btn" id="installBtn" type="button" title="click to copy">
-                <span class="install-prompt">$</span>
-                <span class="install-cmd">npm i genby</span>
-                <span class="install-label" id="installLabel">copy</span>
-            </button>
-        </div>
-        <div class="hero-tagline">
-            <span class="c">//</span> embeddable TS mini-DSL for custom APIs <span class="c">
-        </div>
-        <div class="hero-meta">
-            <!-- <span class="sep"></span> -->
-            <span><span class="key"><span class="val">open</span> source , <span class="val">mit</span> license , dependency <span class="val">free</span></span>
-            <!-- <span class="sep"></span> -->
-            <!-- <span><span class="key">mit license</span> </span> -->
-        </div>
-    </div>
-
-    <!-- 01 · language config -->
-    <div class="step">
-        <div class="step-rail">
-            <span class="step-num">01</span>
-            <span class="step-tag">config</span>
-        </div>
-        <div class="step-body">
-            <div class="step-header">
-                <div class="step-title">language config</div>
-                <div class="step-rule"></div>
+        <!-- hero -->
+        <div class="hero">
+            <div class="hero-brand">
+                <div class="hero-name">genby<span class="lang">lang</span></div>
+                <div class="hero-version">v1.0.0</div>
+                <button class="install-btn" id="installBtn" type="button" title="click to copy">
+                    <span class="install-prompt">$</span>
+                    <span class="install-cmd">npm i genby</span>
+                    <span class="install-label" id="installLabel">copy</span>
+                </button>
             </div>
+            <div class="hero-tagline">
+                <span class="c">//</span> embeddable TS mini-DSL for custom APIs <span class="c">
+            </div>
+            <div class="hero-meta">
+                <span><span class="key"><span class="val">open</span> source , <span class="val">mit</span> license ,
+                        dependency <span class="val">free</span></span>
+            </div>
+        </div>
+
+        <!-- language config -->
+        <section class="step">
+            <div class="step-title">language config</div>
             <div class="step-desc">
                 declare functions, variables, enums, and directives on a <code>Genby</code> instance.
                 return the instance at the end.
             </div>
 
-            <div class="card">
-                <div class="card-head">
-                    <div class="filename">config<span class="ext">.js</span></div>
-                    <div class="right">try it</div>
-                </div>
+            <details class="card" id="configCard" open>
+                <summary>config.js</summary>
                 <div class="code-edit" id="configEdit">
                     <pre class="code-highlight" aria-hidden="true"><code id="configHighlight"></code></pre>
-                    <textarea id="configInput" class="code-input" spellcheck="false"
-                              autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+                    <textarea id="configInput" class="code-input" spellcheck="false" autocomplete="off"
+                        autocorrect="off" autocapitalize="off"></textarea>
                 </div>
-            </div>
+                <div class="resizeHandle" data-resize-target="#configInput" role="separator"
+                    aria-orientation="horizontal" title="Drag to resize"></div>
+            </details>
 
             <div class="btn-row">
                 <button class="btn btn-primary" id="makeBtn" type="button">
@@ -670,77 +865,50 @@
                 <span class="badge" id="configBadge">idle</span>
                 <span class="badge-msg" id="configMsg"></span>
             </div>
-        </div>
-    </div>
+        </section>
 
-    <!-- 02 · generated docs -->
-    <div class="step">
-        <div class="step-rail">
-            <span class="step-num">02</span>
-            <span class="step-tag">docs</span>
-        </div>
-        <div class="step-body">
-            <div class="step-header">
-                <div class="step-title">generated docs</div>
-                <div class="step-rule"></div>
-            </div>
+        <!-- generated docs -->
+        <section class="step">
+            <div class="step-title">generated docs</div>
             <div class="step-desc">
                 a full markdown reference is produced from your language config via <code>machine.docs()</code>.
             </div>
 
             <details class="card" id="docsCard">
-                <summary class="card-head">
-                    <div class="filename">reference<span class="ext">.md</span></div>
-                    <!-- <span class="count" id="docsCount"></span> -->
-                    <div class="right">generated</div>
-                </summary>
+                <summary>reference.md</summary>
                 <div class="md-render" id="docsBody">
                     <div class="md-placeholder">build the language first</div>
                 </div>
+                <div class="resizeHandle" data-resize-target="#docsBody" role="separator" aria-orientation="horizontal"
+                    title="Drag to resize"></div>
             </details>
-        </div>
-    </div>
+        </section>
 
-    <!-- 03 · program -->
-    <div class="step">
-        <div class="step-rail">
-            <span class="step-num">03</span>
-            <span class="step-tag">program</span>
-        </div>
-        <div class="step-body">
-            <div class="step-header">
-                <div class="step-title">genby program</div>
-                <div class="step-rule"></div>
-            </div>
+        <!-- program -->
+        <section class="step">
+            <div class="step-title">genby program</div>
             <div class="step-desc">
-                write a program in the language you just declared. syntax highlighting and completions come from <code>machine.inputDom()</code>.
+                write a program in the language you just declared. syntax highlighting and completions come from
+                <code>machine.inputDom()</code>.
             </div>
 
-            <div class="card">
-                <div class="card-head">
-                    <div class="bullets"><span></span><span></span><span></span></div>
-                    <div class="filename">program<span class="ext">.genby</span></div>
-                    <div class="right" id="programRight">waiting</div>
-                </div>
+            <details class="card" id="programCard" open>
+                <summary>program.gb</summary>
                 <div class="genby-host" id="genbyHost">
                     <div class="md-placeholder">build the language first</div>
                 </div>
+                <div class="resizeHandle" data-resize-target="#genbyHost .genby-input__textarea" role="separator"
+                    aria-orientation="horizontal" title="Drag to resize"></div>
+            </details>
+            <div class="btn-row">
+                <span class="meta" id="programRight">waiting</span>
             </div>
             <div class="badge-msg" id="programMsg"></div>
-        </div>
-    </div>
+        </section>
 
-    <!-- 04 · run -->
-    <div class="step">
-        <div class="step-rail">
-            <span class="step-num">04</span>
-            <span class="step-tag">run</span>
-        </div>
-        <div class="step-body">
-            <div class="step-header">
-                <div class="step-title">run</div>
-                <div class="step-rule"></div>
-            </div>
+        <!-- run -->
+        <section class="step">
+            <div class="step-title">run</div>
             <div class="step-desc">
                 executes the program against your configured handlers. the return value is rendered below.
             </div>
@@ -750,28 +918,30 @@
                     <span class="caret">&gt;</span> run
                 </button>
                 <span class="badge" id="runBadge">idle</span>
+                <span class="meta" id="runRight">—</span>
             </div>
 
-            <div class="card">
-                <div class="card-head">
-                    <div class="filename">result<span class="ext">.txt</span></div>
-                    <div class="right" id="runRight">—</div>
-                </div>
+            <details class="card" id="runCard" open>
+                <summary>output.txt</summary>
                 <pre class="output-pre empty" id="runOutput">no output yet</pre>
-            </div>
+                <div class="resizeHandle" data-resize-target="#runOutput" role="separator" aria-orientation="horizontal"
+                    title="Drag to resize"></div>
+            </details>
             <div class="badge-msg" id="runMsg"></div>
+        </section>
+
+        <div class="footer">
+            <div class="left">
+                <span>made by master-ferrari</span><span class="sep">
+            </div>
+            <div class="right"><a href="https://t.me/svastic_fantastic" target="_blank"
+                    style="color: var(--text-faint); text-decoration: none;"
+                    onmouseover="this.style.textDecoration='underline'"
+                    onmouseout="this.style.textDecoration='none'">t.me/svastic_fantastic</a></div>
         </div>
     </div>
 
-    <div class="footer"> 
-         <!-- TODO ссылку на гитхаб и телегу вместо всего-всего -->
-        <div class="left">
-            <span>made by master-ferrari</span><span class="sep">
-        </div>
-        <div class="right"><a href="https://t.me/svastic_fantastic" target="_blank" style="color: var(--text-faint); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">t.me/svastic_fantastic</a></div>
-    </div>
-</div>
-
-<script type="module" src="./main.js"></script>
+    <script type="module" src="./main.js"></script>
 </body>
+
 </html>

@@ -388,30 +388,54 @@
         background: #0c0d0f;
     }
 
-    /* ---------- resize handle (visual demo) ---------- */
-    .resize-demo {
-        display: flex;
-        align-items: stretch;
-        height: 64px;
-        gap: 0;
-    }
-    .resize-demo .side {
-        flex: 1;
-        background: #111216;
+    /* ---------- console + resizeHandle (ported from +page.svelte) ---------- */
+    .consoleWrapper {
         border: 1px solid #272a30;
-        border-radius: 6px;
+        border-radius: 8px;
+        background: #0a0b0e;
+        display: grid;
+        grid-template-rows: 1fr auto;
+        overflow: hidden;
     }
-    .resize-handle {
-        width: 7px;
-        margin: 0 -3px;
-        z-index: 100;
-        cursor: col-resize;
-        border-radius: 3.5px;
-        flex-shrink: 0;
-        transition: background 0.15s;
+    .console {
+        overflow: auto;
+        padding: 6px;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 11.5px;
+        line-height: 1.35;
+        color: #cfead6;
+        scrollbar-width: thin;
+        scrollbar-color: #656b76 #111316;
     }
-    .resize-handle:hover,
-    .resize-handle.active { background: #3f4041; }
+    .console::-webkit-scrollbar { width: 10px; height: 10px; }
+    .console::-webkit-scrollbar-track { background: #111316; border-radius: 8px; }
+    .console::-webkit-scrollbar-thumb {
+        background: #656b76;
+        border-radius: 8px;
+        border: 2px solid #111316;
+    }
+    .console::-webkit-scrollbar-thumb:hover { background: #7a818d; }
+    .console-body { margin: 0; white-space: pre-wrap; }
+
+    .resizeHandle {
+        height: 10px;
+        cursor: ns-resize;
+        display: grid;
+        place-items: center;
+        background: #0f1115;
+        border-top: 1px solid #1e222a;
+    }
+    .resizeHandle::before {
+        content: "";
+        width: 40px;
+        height: 3px;
+        border-radius: 3px;
+        background: #3a3f49;
+    }
+    .resizeHandle:active::before,
+    .resizeHandle:focus::before {
+        background: #4b5260;
+    }
 
     /* ---------- footer hint ---------- */
     .hint {
@@ -517,12 +541,23 @@
         <div class="empty">empty state</div>
     </div>
 
-    <!-- Resize handle -->
-    <div class="section-title">resize handle</div>
-    <div class="resize-demo">
-        <div class="side"></div>
-        <div class="resize-handle"></div>
-        <div class="side"></div>
+    <!-- Resize handle (console) -->
+    <div class="section-title">resize handle · console</div>
+    <div class="consoleWrapper" id="consoleWrapper" style="height: 220px">
+        <div class="console">
+            <pre class="console-body">[12:00:01] boot
+[12:00:02] connected
+[12:00:03] ready
+[12:00:04] waiting for input
+[12:00:05] drag the handle below to resize ↓</pre>
+        </div>
+        <div class="resizeHandle" id="consoleResize"
+             role="separator"
+             aria-orientation="horizontal"
+             aria-valuemin="140"
+             aria-valuemax="720"
+             aria-valuenow="220"
+             title="Drag to resize"></div>
     </div>
 
     <div class="hint">hint text</div>
@@ -603,42 +638,37 @@
     }
     document.querySelectorAll('.dropdown').forEach(setupDropdown);
 
-    // resize handle
-    document.querySelectorAll('.resize-demo').forEach(demo => {
-        const handle = demo.querySelector('.resize-handle');
-        const leftSide = demo.querySelector('.side');
-        if (!handle || !leftSide) return;
+    // console resizeHandle (ported from +page.svelte onResizeStart/Move/End)
+    (function () {
+        const wrapper = document.getElementById('consoleWrapper');
+        const handle = document.getElementById('consoleResize');
+        if (!wrapper || !handle) return;
 
+        let isDragging = false;
+        let startY = 0;
+        let startHeight = 0;
+
+        function onMove(e) {
+            if (!isDragging) return;
+            const delta = e.clientY - startY;
+            const newH = Math.max(140, Math.min(720, startHeight + delta));
+            wrapper.style.height = newH + 'px';
+            handle.setAttribute('aria-valuenow', String(newH));
+        }
+        function onUp() {
+            isDragging = false;
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        }
         handle.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            handle.classList.add('active');
-            document.body.style.cursor = 'col-resize';
-            document.body.style.userSelect = 'none';
-
-            const startX = e.clientX;
-            const startWidth = leftSide.getBoundingClientRect().width;
-            const demoRect = demo.getBoundingClientRect();
-            const handleWidth = handle.getBoundingClientRect().width;
-            const minWidth = 20;
-            const maxWidth = demoRect.width - handleWidth - minWidth;
-
-            const onMove = (ev) => {
-                const dx = ev.clientX - startX;
-                const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
-                leftSide.style.flex = '0 0 auto';
-                leftSide.style.width = newWidth + 'px';
-            };
-            const onUp = () => {
-                handle.classList.remove('active');
-                document.body.style.cursor = '';
-                document.body.style.userSelect = '';
-                window.removeEventListener('mousemove', onMove);
-                window.removeEventListener('mouseup', onUp);
-            };
+            isDragging = true;
+            startY = e.clientY;
+            startHeight = wrapper.getBoundingClientRect().height;
             window.addEventListener('mousemove', onMove);
             window.addEventListener('mouseup', onUp);
+            e.preventDefault();
         });
-    });
+    })();
 </script>
 
 </body>

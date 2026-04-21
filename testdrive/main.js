@@ -529,6 +529,37 @@ function formatResult(v) {
 makeBtn.addEventListener('click', buildMachine);
 runBtn.addEventListener('click', runProgram);
 
+// vertical resize handles
+document.querySelectorAll('.resizeHandle[data-resize-target]').forEach((handle) => {
+    const selector = handle.getAttribute('data-resize-target');
+    handle.addEventListener('mousedown', (e) => {
+        const target = document.querySelector(selector);
+        if (!target) return;
+        e.preventDefault();
+        handle.classList.add('active');
+        document.body.style.cursor = 'row-resize';
+        document.body.style.userSelect = 'none';
+
+        const startY = e.clientY;
+        const startHeight = target.getBoundingClientRect().height;
+        const minHeight = 80;
+
+        const onMove = (ev) => {
+            const dy = ev.clientY - startY;
+            target.style.height = Math.max(minHeight, startHeight + dy) + 'px';
+        };
+        const onUp = () => {
+            handle.classList.remove('active');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    });
+});
+
 configInput.value = DEFAULT_CONFIG;
 updateConfigHighlight();
 buildMachine();
