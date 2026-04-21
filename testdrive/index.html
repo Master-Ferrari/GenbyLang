@@ -196,7 +196,36 @@
             color: var(--text-dim);
         }
 
+        .hero-desc {
+            margin-top: 42px;
+            color: var(--text-soft);
+            font-size: var(--fs-body);
+            line-height: var(--lh-body);
+            max-width: 720px;
+        }
+
+        .hero-desc .hl {
+            color: var(--accent);
+        }
+
+        .hero-desc .hl-2 {
+            color: var(--accent-2);
+        }
+
+        .hero-desc .hl-3 {
+            color: var(--accent-3);
+        }
+
+        .hero-desc code {
+            color: var(--accent);
+            background: var(--accent-a08);
+            padding: 0 4px;
+            border-radius: var(--border-radius);
+            font-size: var(--fs-xs);
+        }
+
         .hero-meta {
+            transform: translate(0px, 8px);
             margin-top: 16px;
             display: flex;
             align-items: center;
@@ -849,13 +878,24 @@
                     <span class="install-label" id="installLabel">copy</span>
                 </button>
             </div>
-            <div class="hero-tagline">
+            <!-- <div class="hero-tagline">
                 <span class="c">//</span> embeddable TS mini-DSL for custom APIs <span class="c">
-            </div>
+            </div> -->
             <div class="hero-meta">
                 <span><span class="key"><span class="val">open</span> source , <span class="val">mit</span> license ,
                         dependency <span class="val">free</span></span>
             </div>
+            <p class="hero-desc">
+                <span class="hl">// genby</span> is a js-executed language built to stay friendly , simple , and fully
+                customizable<br>
+                it strips syntax down to the minimum by treating <span class="hl">everything as a
+                function</span> , so instead of block-heavy structures it leans on nested calls like
+                <code>a ( b ( с ) )</code><br>
+                the whole system is packaged as a single class where you define your own
+                api , including control flow such as <span class="hl">loops</span> and <span class="hl">branching</span> ,
+                and that same class can also export an input field with <span class="hl">highlighting</span> and completions plus
+                auto-generated <span class="hl">markdown docs</span>
+            </p>
         </div>
 
         <!-- language config -->
