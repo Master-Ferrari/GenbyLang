@@ -27,10 +27,16 @@ export interface AutocompleteContext {
   before: string;
   /** Text after the cursor. */
   after: string;
-  /** The identifier token currently under the cursor (may be empty). */
+  /** The identifier prefix between wordStart and the cursor (may be empty). */
   currentWord: string;
-  /** Absolute offset of the start of currentWord. */
+  /** Absolute offset of the start of the identifier under the cursor. */
   wordStart: number;
+  /** Absolute offset right after the last ident char under the cursor. */
+  wordEnd: number;
+  /** Full identifier under the cursor (spans both sides of the cursor). */
+  fullWord: string;
+  /** True when the cursor sits at the trailing edge of the identifier. */
+  atWordEnd: boolean;
   /** True if the cursor is at the start of an identifier after '@'. */
   afterAt: boolean;
   /** True if the cursor is inside a function call — we can scope by expected arg type. */
@@ -49,7 +55,13 @@ export function buildContext(
   while (wordStart > 0 && IDENT_CONT.test(source[wordStart - 1] ?? '')) {
     wordStart -= 1;
   }
+  let wordEnd = cursor;
+  while (wordEnd < source.length && IDENT_CONT.test(source[wordEnd] ?? '')) {
+    wordEnd += 1;
+  }
   const currentWord = source.slice(wordStart, cursor);
+  const fullWord = source.slice(wordStart, wordEnd);
+  const atWordEnd = wordEnd === cursor;
   const afterAt = wordStart > 0 && source[wordStart - 1] === '@';
 
   // Quick call-context detection: walk backwards, tracking paren depth and commas.
@@ -61,6 +73,9 @@ export function buildContext(
     after: source.slice(cursor),
     currentWord,
     wordStart,
+    wordEnd,
+    fullWord,
+    atWordEnd,
     afterAt,
     insideCall,
   };

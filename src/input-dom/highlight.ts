@@ -74,12 +74,14 @@ export function highlightToHtml(input: HighlightInput): string {
   let out = '';
   let cursor = 0;
 
-  const emitRaw = (text: string, classes: string[]) => {
+  const emitRaw = (text: string, classes: string[], errIdx: number | null) => {
     if (text.length === 0) return;
-    if (classes.length === 0) {
+    const attr = errIdx !== null ? ` data-error-idx="${errIdx}"` : '';
+    if (classes.length === 0 && errIdx === null) {
       out += escapeHtml(text);
     } else {
-      out += `<span class="${classes.join(' ')}">${escapeHtml(text)}</span>`;
+      const cls = classes.length > 0 ? ` class="${classes.join(' ')}"` : '';
+      out += `<span${cls}${attr}>${escapeHtml(text)}</span>`;
     }
   };
 
@@ -96,11 +98,12 @@ export function highlightToHtml(input: HighlightInput): string {
     for (let i = 0; i < sorted.length - 1; i++) {
       const a = sorted[i]!;
       const b = sorted[i + 1]!;
-      const inError = errorRanges.some((r) => r.start < b && r.end > a);
+      const errIdx = errorRanges.findIndex((r) => r.start < b && r.end > a);
+      const inError = errIdx >= 0;
       const classes: string[] = [];
       if (baseClass) classes.push(baseClass);
       if (inError) classes.push('genby-error');
-      emitRaw(source.slice(a, b), classes);
+      emitRaw(source.slice(a, b), classes, inError ? errIdx : null);
     }
   };
 

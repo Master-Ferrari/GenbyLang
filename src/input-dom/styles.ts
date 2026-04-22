@@ -38,6 +38,22 @@ export const DEFAULT_CSS = `
   overflow: hidden;
   z-index: 1;
 }
+.genby-input__highlight > code {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  word-spacing: inherit;
+  white-space: inherit;
+  word-wrap: inherit;
+  word-break: inherit;
+  tab-size: inherit;
+}
 .genby-input__textarea {
   position: relative;
   width: 100%;
@@ -167,6 +183,33 @@ export const DEFAULT_CSS = `
   font-style: italic;
   white-space: normal;
   font-size: 0.92em;
+}
+
+.genby-input__errhint {
+  position: absolute;
+  z-index: 11;
+  max-width: 90%;
+  padding: 4px 8px;
+  background: var(--genby-sighint-bg, var(--genby-popup-bg, #ffffff));
+  border: 1px solid var(--genby-error-color, #d1242f);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  font-size: 0.9em;
+  line-height: 1.4;
+  color: var(--genby-color, #1f2328);
+  white-space: pre-wrap;
+  display: none;
+  pointer-events: none;
+}
+.genby-input__errhint[data-open="true"] {
+  display: block;
+}
+.genby-input__errhint-kind {
+  color: var(--genby-error-color, #d1242f);
+  font-weight: 600;
+}
+.genby-input__errhint-msg {
+  color: inherit;
 }
 `;
 

@@ -16,7 +16,6 @@ import { EXAMPLES } from './examples.js';
 const configInput = document.getElementById('configInput');
 const configHighlight = document.getElementById('configHighlight');
 const configEdit = document.getElementById('configEdit');
-const makeBtn = document.getElementById('makeBtn');
 const configBadge = document.getElementById('configBadge');
 const configMsg = document.getElementById('configMsg');
 
@@ -140,7 +139,20 @@ function syncConfigScroll() {
     pre.scrollLeft = configInput.scrollLeft;
 }
 
-configInput.addEventListener('input', () => { updateConfigHighlight(); syncConfigScroll(); });
+let buildDebounce = 0;
+function scheduleRebuild() {
+    clearTimeout(buildDebounce);
+    buildDebounce = setTimeout(() => {
+        buildDebounce = 0;
+        buildMachine();
+    }, 400);
+}
+
+configInput.addEventListener('input', () => {
+    updateConfigHighlight();
+    syncConfigScroll();
+    scheduleRebuild();
+});
 configInput.addEventListener('scroll', syncConfigScroll);
 
 // tab = indent (2 spaces) instead of focus jump
@@ -424,7 +436,6 @@ function formatResult(v) {
 // wire up
 // -----------------------------------------------------------------
 
-makeBtn.addEventListener('click', buildMachine);
 runBtn.addEventListener('click', runProgram);
 
 // vertical resize handles

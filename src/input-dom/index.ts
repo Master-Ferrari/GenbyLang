@@ -1,9 +1,10 @@
 import { lex, type Token } from '../lexer.js';
 import { parse } from '../parser.js';
-import { check, type IdentCategory } from '../checker.js';
-import { isBuiltinType } from '../config.js';
+import { check, type IdentCategory, type ResolvedType } from '../checker.js';
+import { isBuiltinType, RETURN } from '../config.js';
 import type { LangMachine } from '../genby.js';
 import type { CheckResult, GenbyError } from '../types.js';
+import { STR, NUM, BUL, ENUM, ANY } from '../types.js';
 import { highlightToHtml } from './highlight.js';
 import {
   buildContext,
@@ -56,11 +57,15 @@ export function createInputDom(machine: LangMachine): GenbyInput {
   const sigHint = doc.createElement('div');
   sigHint.className = 'genby-input__sighint';
   sigHint.setAttribute('data-open', 'false');
+  const errHint = doc.createElement('div');
+  errHint.className = 'genby-input__errhint';
+  errHint.setAttribute('data-open', 'false');
 
   stack.appendChild(highlight);
   stack.appendChild(textarea);
   stack.appendChild(sigHint);
   stack.appendChild(popup);
+  stack.appendChild(errHint);
   root.appendChild(stack);
 
   const listeners = new Set<(text: string) => void>();
@@ -69,7 +74,7 @@ export function createInputDom(machine: LangMachine): GenbyInput {
     tokens: Token[];
     identInfo: Map<number, IdentCategory>;
     errors: GenbyError[];
-    locals: Map<string, unknown>;
+    locals: Map<string, ResolvedType>;
   };
 
   let state: State = emptyState();
@@ -77,6 +82,7 @@ export function createInputDom(machine: LangMachine): GenbyInput {
   let selectedIdx = 0;
   let popupOpen = false;
   let sigHintOpen = false;
+  let errHintOpen = false;
 
   function emptyState(): State {
     return {
@@ -115,8 +121,25 @@ export function createInputDom(machine: LangMachine): GenbyInput {
   function updatePopup(): void {
     const ctx = buildContext(textarea.value, textarea.selectionStart ?? 0);
 
-    // Signature hint is independent of the completion popup.
-    updateSignatureHint(ctx);
+    // Hint priority:
+    //   1. Cursor sits inside a known identifier → show its type.
+    //   2. Cursor is in the argument region of a call → show signature hint.
+    // The completion popup is suppressed whenever the cursor is not at the
+    // trailing edge of the identifier (i.e. the user is hovering, not typing).
+    const identHint = resolveIdentHint(ctx);
+    if (identHint) {
+      renderIdentHint(identHint);
+      positionSignatureHint();
+      sigHint.setAttribute('data-open', 'true');
+      sigHintOpen = true;
+    } else {
+      updateSignatureHint(ctx);
+    }
+
+    if (!ctx.atWordEnd) {
+      hidePopup();
+      return;
+    }
 
     const activeArg = getActiveArgSpec(machine.config, ctx);
     const enumAutoOpen =
@@ -134,12 +157,25 @@ export function createInputDom(machine: LangMachine): GenbyInput {
       hidePopup();
       return;
     }
+    // Preserve the highlighted row when the set of suggestions didn't
+    // actually change (e.g. user pressed an arrow key while the popup is
+    // open — keyup re-enters updatePopup but the list is the same).
+    const prevKey = suggestionsKey(suggestions);
+    const nextKey = suggestionsKey(items);
     suggestions = items;
-    selectedIdx = 0;
+    if (prevKey !== nextKey) {
+      selectedIdx = 0;
+    } else if (selectedIdx >= items.length) {
+      selectedIdx = 0;
+    }
     renderPopupItems();
     positionPopup();
     popup.setAttribute('data-open', 'true');
     popupOpen = true;
+  }
+
+  function suggestionsKey(items: Suggestion[]): string {
+    return items.map((s) => s.label).join('\u0001');
   }
 
   function updateSignatureHint(ctx: AutocompleteContext): void {
@@ -152,6 +188,115 @@ export function createInputDom(machine: LangMachine): GenbyInput {
     positionSignatureHint();
     sigHint.setAttribute('data-open', 'true');
     sigHintOpen = true;
+  }
+
+  type IdentHint =
+    | { kind: 'variable'; name: string; type: ResolvedType; source: 'local' | 'external' }
+    | { kind: 'enum_value'; name: string; enumKey: string }
+    | { kind: 'signature'; sig: SignatureInfo };
+
+  function resolveIdentHint(ctx: AutocompleteContext): IdentHint | null {
+    const name = ctx.fullWord;
+    if (!name || !/^[a-zA-Z_]/.test(name)) return null;
+    // Skip directive tokens (`@name(` handled by sighint) and RETURN.
+    if (ctx.afterAt) return null;
+    if (name === RETURN) return null;
+    // Only treat as identifier if lexer produced an IDENT token at this span
+    // (guards against cursor being inside a string or comment).
+    if (!state.identInfo.has(ctx.wordStart)) return null;
+
+    const local = state.locals.get(name);
+    if (local) {
+      return { kind: 'variable', name, type: local, source: 'local' };
+    }
+    const extVar = machine.config.variables.get(name);
+    if (extVar) {
+      const type: ResolvedType =
+        extVar.type === ENUM
+          ? { kind: ENUM, enumKey: extVar.enumKey ?? '' }
+          : isBuiltinType(extVar.type)
+            ? { kind: extVar.type as typeof STR | typeof NUM | typeof BUL | typeof ANY }
+            : { kind: 'CUSTOM', name: extVar.type };
+      return { kind: 'variable', name, type, source: 'external' };
+    }
+    const enumKey = machine.config.enumValueIndex.get(name);
+    if (enumKey) {
+      return { kind: 'enum_value', name, enumKey };
+    }
+    const fn = machine.config.functions.get(name);
+    if (fn) {
+      return {
+        kind: 'signature',
+        sig: {
+          kind: 'function',
+          name: fn.name,
+          args: fn.args,
+          activeIndex: -1,
+          returns: fn.returns,
+          describe: fn.describe,
+        },
+      };
+    }
+    const dir = machine.config.directives.get(name);
+    if (dir) {
+      return {
+        kind: 'signature',
+        sig: {
+          kind: 'directive',
+          name: dir.name,
+          args: dir.args,
+          activeIndex: -1,
+          returns: null,
+          describe: dir.describe,
+        },
+      };
+    }
+    return null;
+  }
+
+  function formatType(t: ResolvedType): string {
+    if (t.kind === ENUM) return `ENUM<${t.enumKey || '?'}>`;
+    if (t.kind === 'CUSTOM') return t.name;
+    if (t.kind === 'VOID') return 'VOID';
+    return t.kind;
+  }
+
+  function renderIdentHint(hint: IdentHint): void {
+    if (hint.kind === 'signature') {
+      renderSignatureHint(hint.sig);
+      return;
+    }
+    sigHint.innerHTML = '';
+    const nameEl = doc.createElement('span');
+    nameEl.className = 'genby-input__sighint-argname';
+    nameEl.textContent = hint.name;
+    sigHint.appendChild(nameEl);
+    const colon = doc.createElement('span');
+    colon.className = 'genby-input__sighint-punct';
+    colon.textContent = ': ';
+    sigHint.appendChild(colon);
+    const ty = doc.createElement('span');
+    ty.className = 'genby-input__sighint-type';
+    if (hint.kind === 'variable') {
+      const typeText = formatType(hint.type);
+      const baseType = hint.type.kind === 'CUSTOM' ? hint.type.name : hint.type.kind;
+      ty.setAttribute('data-type', baseType);
+      if (hint.type.kind === 'CUSTOM') ty.setAttribute('data-custom', 'true');
+      ty.textContent = typeText;
+      sigHint.appendChild(ty);
+      const suffix = doc.createElement('span');
+      suffix.className = 'genby-input__sighint-return';
+      suffix.textContent = hint.source === 'local' ? '  (local)' : '  (variable)';
+      sigHint.appendChild(suffix);
+    } else {
+      ty.setAttribute('data-type', 'ENUM');
+      ty.textContent = `ENUM<${hint.enumKey}>`;
+      sigHint.appendChild(ty);
+      const suffix = doc.createElement('span');
+      suffix.className = 'genby-input__sighint-return';
+      suffix.textContent = '  (enum value)';
+      sigHint.appendChild(suffix);
+    }
   }
 
   function hideSignatureHint(): void {
@@ -298,6 +443,7 @@ export function createInputDom(machine: LangMachine): GenbyInput {
   function onInput(): void {
     render();
     syncScroll();
+    hideErrHint();
     for (const cb of listeners) cb(textarea.value);
     updatePopup();
   }
@@ -335,17 +481,90 @@ export function createInputDom(machine: LangMachine): GenbyInput {
     updatePopup();
   }
 
+  function findErrorAtPoint(
+    clientX: number,
+    clientY: number,
+  ): { errorIdx: number; rect: DOMRect } | null {
+    const spans =
+      highlight.querySelectorAll<HTMLElement>('[data-error-idx]');
+    for (let i = 0; i < spans.length; i++) {
+      const el = spans[i]!;
+      const rects = el.getClientRects();
+      for (let j = 0; j < rects.length; j++) {
+        const r = rects[j]!;
+        if (
+          clientX >= r.left &&
+          clientX <= r.right &&
+          clientY >= r.top &&
+          clientY <= r.bottom
+        ) {
+          const idx = Number(el.getAttribute('data-error-idx'));
+          if (Number.isFinite(idx)) return { errorIdx: idx, rect: r };
+        }
+      }
+    }
+    return null;
+  }
+
+  function showErrHint(err: GenbyError, rect: DOMRect): void {
+    errHint.innerHTML = '';
+    const kind = doc.createElement('span');
+    kind.className = 'genby-input__errhint-kind';
+    kind.textContent = `[${err.kind}]`;
+    errHint.appendChild(kind);
+    const msg = doc.createElement('span');
+    msg.className = 'genby-input__errhint-msg';
+    msg.textContent = ' ' + err.message;
+    errHint.appendChild(msg);
+
+    const stackRect = stack.getBoundingClientRect();
+    const top = rect.bottom - stackRect.top + 6;
+    const left = rect.left - stackRect.left;
+    errHint.style.top = `${top}px`;
+    errHint.style.left = `${left}px`;
+    errHint.setAttribute('data-open', 'true');
+    errHintOpen = true;
+  }
+
+  function hideErrHint(): void {
+    if (!errHintOpen) return;
+    errHint.setAttribute('data-open', 'false');
+    errHintOpen = false;
+  }
+
+  function onMouseMove(ev: MouseEvent): void {
+    const hit = findErrorAtPoint(ev.clientX, ev.clientY);
+    if (!hit) {
+      hideErrHint();
+      return;
+    }
+    const err = state.errors[hit.errorIdx];
+    if (!err) {
+      hideErrHint();
+      return;
+    }
+    showErrHint(err, hit.rect);
+  }
+
+  function onScrollAll(): void {
+    syncScroll();
+    hideErrHint();
+  }
+
   textarea.addEventListener('input', onInput);
-  textarea.addEventListener('scroll', syncScroll);
+  textarea.addEventListener('scroll', onScrollAll);
   textarea.addEventListener('keydown', onKeydown);
   textarea.addEventListener('keyup', onCaretMove);
   textarea.addEventListener('click', onCaretMove);
   textarea.addEventListener('focus', onCaretMove);
+  textarea.addEventListener('mousemove', onMouseMove);
+  textarea.addEventListener('mouseleave', hideErrHint);
   textarea.addEventListener('blur', () => {
     // Slight delay to let mousedown on popup items land first.
     setTimeout(() => {
       hidePopup();
       hideSignatureHint();
+      hideErrHint();
     }, 100);
   });
 
@@ -370,12 +589,15 @@ export function createInputDom(machine: LangMachine): GenbyInput {
       listeners.clear();
       hidePopup();
       hideSignatureHint();
+      hideErrHint();
       textarea.removeEventListener('input', onInput);
-      textarea.removeEventListener('scroll', syncScroll);
+      textarea.removeEventListener('scroll', onScrollAll);
       textarea.removeEventListener('keydown', onKeydown);
       textarea.removeEventListener('keyup', onCaretMove);
       textarea.removeEventListener('click', onCaretMove);
       textarea.removeEventListener('focus', onCaretMove);
+      textarea.removeEventListener('mousemove', onMouseMove);
+      textarea.removeEventListener('mouseleave', hideErrHint);
       root.remove();
     },
   };
