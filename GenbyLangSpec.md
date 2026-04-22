@@ -100,6 +100,31 @@ const langMachine = genby.build()
 `ArgSpec`/`VariableSpec`/`FunctionSpec.returns`. Финальная валидация, что все упоминаемые типы зарегистрированы,
 происходит в `build()` — поэтому порядок вызовов `addType` / `addFunction` / `addVariable` не важен.
 
+### Пресеты
+
+`addPreset(name)` одним вызовом регистрирует подобранный набор функций (а при необходимости — и типов).
+Доступные имена экспортируются как `PRESET_NAMES` (TS-тип `PresetName`):
+
+| Пресет | Что добавляет |
+| --- | --- |
+| `'control'` | `IF`, `WHEN`, `UNLESS`, `AND`, `OR`, `NOT`, `EQ`, `NEQ`, `COALESCE`, `CHOOSE`, `CASE` |
+| `'loops'`   | `FOR`, `TIMES`, `WHILE` |
+| `'arrays'`  | тип `ARR` + `ARR`, `RANGE`, `SIZE`, `AT`, `FIRST`, `LAST`, `SLICE`, `CONCAT`, `REVERSE`, `PUSH`, `CONTAINS`, `INDEX_OF`, `SPLIT`, `JOIN` |
+| `'cast'`    | `STR`, `NUM`, `BUL`, `INT` |
+
+Пресеты не «включаются по умолчанию» — Genby остаётся минимальным ядром. Регистрация конфликтующих имён
+(например, применение `'cast'` после ручного `addFunction({ name: 'STR', … })`) бросает ошибку обычного
+механизма `assertNameFree`. Пресеты можно комбинировать в любом порядке — `control + loops + arrays + cast`
+покрывают типичные нужды для языка-конфигуратора.
+
+```ts
+const g = new Genby()
+g.addPreset('control')
+g.addPreset('loops')
+g.addPreset('arrays')
+g.addPreset('cast')
+```
+
 Регистрация enum-ов идёт по внутреннему ключу (`enumKey`). Конечный пользователь
 языка этот ключ не видит — он видит только имена значений.
 
@@ -146,12 +171,13 @@ input.destroy(): void
 ```ts
 export { Genby, LangMachine, GenbyInput }
 export { STR, NUM, BUL, ENUM, ANY, makeEnumValue, isEnumValue }
+export { PRESET_NAMES }
 export type {
   Value, EnumValue, Type, BuiltinType,
   ArgSpec, FunctionSpec, DirectiveSpec, VariableSpec,
   EnumValueSpec, EnumSpec, TypeDef, TypeOptions,
   CheckResult, GenbyError, ErrorKind,
-  Thunk, HandlerArg,
+  Thunk, HandlerArg, PresetName,
 }
 ```
 

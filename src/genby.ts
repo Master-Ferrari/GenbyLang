@@ -6,6 +6,7 @@ import type { EnumDef, LangConfig } from './config.js';
 import { BUILTIN_TYPE_NAMES, isBuiltinType } from './config.js';
 import { createInputDom, type GenbyInput } from './input-dom/index.js';
 import { generateMarkdownDocs, type DocsOptions } from './docs.js';
+import { applyPreset, PRESET_NAMES, type PresetName } from './presets.js';
 import type {
   ArgSpec,
   CheckResult,
@@ -100,6 +101,30 @@ export class Genby {
    * `VariableSpec.type`, and `FunctionSpec.returns`. Built-in names
    * (`STR`, `NUM`, `BUL`, `ENUM`, `ANY`, `VOID`) are reserved.
    */
+  /**
+   * Register a curated bundle of functions (and supporting types) in one call.
+   *
+   * Available presets:
+   *  - `'control'` — IF, WHEN, UNLESS, AND, OR, NOT, EQ, NEQ, COALESCE, CHOOSE, CASE
+   *  - `'loops'`   — FOR, TIMES, WHILE
+   *  - `'arrays'`  — registers ARR type + ARR, RANGE, SIZE, AT, FIRST, LAST,
+   *                  SLICE, CONCAT, REVERSE, PUSH, CONTAINS, INDEX_OF, SPLIT, JOIN
+   *  - `'cast'`    — STR, NUM, BUL, INT
+   *
+   * Each contained name is registered via the standard `add*` path, so naming
+   * conflicts (e.g. calling `addPreset('arrays')` after manually adding an
+   * `ARR` type) throw the usual "already registered" error.
+   */
+  addPreset(name: PresetName): this {
+    if (!PRESET_NAMES.includes(name)) {
+      throw new Error(
+        `Unknown preset '${name}'. Available: ${PRESET_NAMES.join(', ')}`,
+      );
+    }
+    applyPreset(this, name);
+    return this;
+  }
+
   addType(name: string, options: AddTypeOptions = {}): this {
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
       throw new Error(`Invalid type name '${name}'`);

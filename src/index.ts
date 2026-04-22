@@ -7,6 +7,8 @@ export type {
 export type { GenbyInput, Unsubscribe } from './input-dom/index.js';
 export { generateMarkdownDocs } from './docs.js';
 export type { DocsOptions } from './docs.js';
+export { PRESET_NAMES } from './presets.js';
+export type { PresetName } from './presets.js';
 export { STR, NUM, BUL, ENUM, ANY, makeEnumValue, isEnumValue } from './types.js';
 export type {
   Value,

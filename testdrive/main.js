@@ -16,106 +16,18 @@ const DEFAULT_CONFIG = `// declare your language here.
 // scope: Genby, STR, NUM, BUL, ENUM, ANY, makeEnumValue.
 // return the configured Genby instance.
 //
-// to add a custom type, call g.addType('NAME', { describe?, stringify? })
-// and reference the name in arg/return types — see ARR / SPLIT / JOIN below.
+// quick start: register a bundle of ready-made helpers via g.addPreset().
+// available presets: 'control', 'loops', 'arrays', 'cast'.
 
 const g = new Genby();
 
-// --- custom type: ARR -------------------------------------------------
+// curated bundles of functions (and types) — see docs panel for details.
+g.addPreset('control'); // IF / WHEN / UNLESS / AND / OR / NOT / EQ / NEQ / COALESCE / CHOOSE / CASE
+g.addPreset('loops');   // FOR / TIMES / WHILE
+g.addPreset('arrays');  // ARR type + ARR / RANGE / SIZE / AT / FIRST / LAST / SLICE / CONCAT / REVERSE / PUSH / CONTAINS / INDEX_OF / SPLIT / JOIN
+g.addPreset('cast');    // STR / NUM / BUL / INT
 
-g.addType('ARR', {
-    describe: 'an ordered list of values (JS array under the hood)',
-    stringify: (v) => JSON.stringify(v),
-});
-
-g.addFunction({
-    name: 'SPLIT',
-    describe: 'splits a string by a separator into an ARR',
-    args: [
-        { name: 's', type: STR },
-        { name: 'sep', type: STR, describe: 'separator' },
-    ],
-    returns: 'ARR',
-    handler: ([s, sep]) => String(s ?? '').split(String(sep ?? '')),
-});
-
-g.addFunction({
-    name: 'JOIN',
-    describe: 'joins an ARR back into a string',
-    args: [
-        { name: 'arr', type: 'ARR' },
-        { name: 'sep', type: STR, describe: 'separator' },
-    ],
-    returns: STR,
-    handler: ([arr, sep]) => (Array.isArray(arr) ? arr : []).join(String(sep ?? '')),
-});
-
-g.addFunction({
-    name: 'SIZE',
-    describe: 'length of an ARR',
-    args: [{ name: 'arr', type: 'ARR' }],
-    returns: NUM,
-    handler: ([arr]) => (Array.isArray(arr) ? arr.length : 0),
-});
-
-// --- type-coercion helpers (ANY in, specific type out) ----------------
-
-g.addFunction({
-    name: 'NUM',
-    describe: 'coerces any value to a number (strings parsed, booleans become 1/0)',
-    args: [{ name: 'v', type: ANY, describe: 'any value' }],
-    returns: NUM,
-    handler: ([v]) => {
-        if (v === undefined || v === null) return 0;
-        if (typeof v === 'boolean') return v ? 1 : 0;
-        if (v && typeof v === 'object' && v.__enum) return Number(v.name);
-        return Number(v);
-    },
-});
-
-g.addFunction({
-    name: 'STR',
-    describe: 'coerces any value to a string (enums render as their name)',
-    args: [{ name: 'v', type: ANY, describe: 'any value' }],
-    returns: STR,
-    handler: ([v]) => {
-        if (v === undefined || v === null) return '';
-        if (v && typeof v === 'object' && v.__enum) return v.name;
-        return String(v);
-    },
-});
-
-g.addFunction({
-    name: 'BUL',
-    describe: 'coerces any value to a boolean (empty string / 0 / enum-nothing is false)',
-    args: [{ name: 'v', type: ANY, describe: 'any value' }],
-    returns: BUL,
-    handler: ([v]) => {
-        if (v === undefined || v === null) return false;
-        if (v && typeof v === 'object' && v.__enum) return true;
-        return Boolean(v);
-    },
-});
-
-// --- control flow: re-evaluate body count times -----------------------
-
-g.addFunction({
-    name: 'FOR',
-    describe: 'runs body count times; body is re-evaluated on each iteration in the caller scope',
-    args: [
-        { name: 'count', type: NUM, describe: 'iteration count' },
-        { name: 'body', type: ANY, lazy: true, describe: 'expression re-evaluated each iteration' },
-    ],
-    returns: 'VOID',
-    handler: async ([count, body]) => {
-        const n = Math.max(0, Math.floor(Number(count)));
-        for (let i = 0; i < n; i++) {
-            await body();
-        }
-    },
-});
-
-// --- directive with a state it shares with a function ----------------
+// --- custom bits on top of the presets -------------------------------
 
 let prefix = '';
 
@@ -134,21 +46,10 @@ g.addFunction({
     handler: async ([text]) => prefix + String(text ?? '').trim().toUpperCase(),
 });
 
-g.addFunction({
-    name: 'IF_THEN_ELSE',
-    args: [
-        { name: 'cond', type: BUL },
-        { name: 'a', type: STR },
-        { name: 'b', type: STR },
-    ],
-    returns: STR,
-    handler: ([c, a, b]) => (c ? a : b),
-});
-
 return g;
 `;
 
-const DEFAULT_PROGRAM = `// user-defined function and a lazy FOR — prints 4 (1 + 1 + 1 + 1).
+const DEFAULT_PROGRAM = `// user-defined function and a lazy FOR — ends up at 4 (1 + 1 + 1 + 1).
 x = 1
 
 func(a) = (
@@ -157,11 +58,14 @@ func(a) = (
 
 FOR(3, (func(3) func(-2)))
 
-// custom type: ARR flows through SPLIT / JOIN / SIZE
+// ARR pipeline — SPLIT / JOIN / SIZE from the 'arrays' preset
 items = SPLIT("alpha,beta,gamma", ",")
 joined = JOIN(items, " | ")
 
-RETURN("x={x} items={items} size={SIZE(items)} joined={joined}")`;
+// control-flow preset: IF picks the truthy branch lazily
+label = IF(SIZE(items), "has items", "empty")
+
+RETURN("x={x} items={items} size={SIZE(items)} joined={joined} label={label}")`;
 
 // -----------------------------------------------------------------
 // dom refs
