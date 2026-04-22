@@ -97,23 +97,26 @@ export class Genby {
   }
 
   /**
-   * Register a custom type. The name becomes usable in `ArgSpec.type`,
-   * `VariableSpec.type`, and `FunctionSpec.returns`. Built-in names
-   * (`STR`, `NUM`, `BUL`, `ENUM`, `ANY`, `VOID`) are reserved.
-   */
-  /**
-   * Register a curated bundle of functions (and supporting types) in one call.
+   * Register a curated function under its canonical name. Each preset adds
+   * exactly one function (and, where relevant, the supporting type or
+   * directive) — the preset name matches the function name. The full list is
+   * exported as {@link PRESET_NAMES}, including:
+   *  - control — `IF`, `WHEN`, `UNLESS`, `AND`, `OR`, `NOT`, `EQ`, `NEQ`,
+   *    `COALESCE`, `CHOOSE`, `CASE`
+   *  - loops — `FOR`, `TIMES`, `WHILE`
+   *  - arrays — `ARR` (also registers the `ARR` type), `RANGE`, `SIZE`, `AT`,
+   *    `FIRST`, `LAST`, `SLICE`, `CONCAT`, `REVERSE`, `PUSH`, `CONTAINS`,
+   *    `INDEX_OF`, `SPLIT`, `JOIN`. Any array preset auto-registers the
+   *    `ARR` type if it is not already present.
+   *  - cast — `STR`, `NUM`, `BUL`, `INT`
+   *  - math — `ADD`, `MUL`, `POW`, `SQRT`
+   *  - strings — `UPPER`, `LOWER`, `REPEAT`, `REPLACE`, `LEN`
+   *  - async — `FETCH_JSON` (also registers the `@API_BASE` directive),
+   *    `SHA256`, `SHORT`
    *
-   * Available presets:
-   *  - `'control'` — IF, WHEN, UNLESS, AND, OR, NOT, EQ, NEQ, COALESCE, CHOOSE, CASE
-   *  - `'loops'`   — FOR, TIMES, WHILE
-   *  - `'arrays'`  — registers ARR type + ARR, RANGE, SIZE, AT, FIRST, LAST,
-   *                  SLICE, CONCAT, REVERSE, PUSH, CONTAINS, INDEX_OF, SPLIT, JOIN
-   *  - `'cast'`    — STR, NUM, BUL, INT
-   *
-   * Each contained name is registered via the standard `add*` path, so naming
-   * conflicts (e.g. calling `addPreset('arrays')` after manually adding an
-   * `ARR` type) throw the usual "already registered" error.
+   * Registration goes through the standard `add*` path, so naming conflicts
+   * (e.g. calling `addPreset('STR')` after a manual `addFunction({ name: 'STR', … })`)
+   * throw the usual "already registered" error.
    */
   addPreset(name: PresetName): this {
     if (!PRESET_NAMES.includes(name)) {
@@ -125,6 +128,11 @@ export class Genby {
     return this;
   }
 
+  /**
+   * Register a custom type. The name becomes usable in `ArgSpec.type`,
+   * `VariableSpec.type`, and `FunctionSpec.returns`. Built-in names
+   * (`STR`, `NUM`, `BUL`, `ENUM`, `ANY`, `VOID`) are reserved.
+   */
   addType(name: string, options: AddTypeOptions = {}): this {
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
       throw new Error(`Invalid type name '${name}'`);
@@ -143,6 +151,12 @@ export class Genby {
     if (options.stringify !== undefined) def.stringify = options.stringify;
     this.types.set(name, def);
     return this;
+  }
+
+  /** True if the given type name is already registered (builtin or custom). */
+  hasType(name: string): boolean {
+    if (isBuiltinType(name)) return true;
+    return this.types.has(name);
   }
 
   build(): LangMachine {

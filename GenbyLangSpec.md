@@ -102,27 +102,31 @@ const langMachine = genby.build()
 
 ### Пресеты
 
-`addPreset(name)` одним вызовом регистрирует подобранный набор функций (а при необходимости — и типов).
-Доступные имена экспортируются как `PRESET_NAMES` (TS-тип `PresetName`):
+`addPreset(name)` регистрирует ровно одну готовую функцию под её каноническим именем. Каждый пресет
+называется так же, как функция, которую он добавляет (и, где это нужно, попутно регистрирует
+поддерживающий тип или директиву). Полный список имён экспортируется как `PRESET_NAMES`
+(TS-тип `PresetName`):
 
-| Пресет | Что добавляет |
-| --- | --- |
-| `'control'` | `IF`, `WHEN`, `UNLESS`, `AND`, `OR`, `NOT`, `EQ`, `NEQ`, `COALESCE`, `CHOOSE`, `CASE` |
-| `'loops'`   | `FOR`, `TIMES`, `WHILE` |
-| `'arrays'`  | тип `ARR` + `ARR`, `RANGE`, `SIZE`, `AT`, `FIRST`, `LAST`, `SLICE`, `CONCAT`, `REVERSE`, `PUSH`, `CONTAINS`, `INDEX_OF`, `SPLIT`, `JOIN` |
-| `'cast'`    | `STR`, `NUM`, `BUL`, `INT` |
+| Группа | Пресеты (= имена функций) | Примечания |
+| --- | --- | --- |
+| control | `IF`, `WHEN`, `UNLESS`, `AND`, `OR`, `NOT`, `EQ`, `NEQ`, `COALESCE`, `CHOOSE`, `CASE` | — |
+| loops | `FOR`, `TIMES`, `WHILE` | — |
+| arrays | `ARR`, `RANGE`, `SIZE`, `AT`, `FIRST`, `LAST`, `SLICE`, `CONCAT`, `REVERSE`, `PUSH`, `CONTAINS`, `INDEX_OF`, `SPLIT`, `JOIN` | любой массивный пресет автоматически регистрирует тип `ARR`, если его ещё нет |
+| cast | `STR`, `NUM`, `BUL`, `INT` | — |
+| math | `ADD`, `MUL`, `POW`, `SQRT` | — |
+| strings | `UPPER`, `LOWER`, `REPEAT`, `REPLACE`, `LEN` | — |
+| async | `FETCH_JSON`, `SHA256`, `SHORT` | `FETCH_JSON` также регистрирует директиву `@API_BASE` |
 
 Пресеты не «включаются по умолчанию» — Genby остаётся минимальным ядром. Регистрация конфликтующих имён
-(например, применение `'cast'` после ручного `addFunction({ name: 'STR', … })`) бросает ошибку обычного
-механизма `assertNameFree`. Пресеты можно комбинировать в любом порядке — `control + loops + arrays + cast`
-покрывают типичные нужды для языка-конфигуратора.
+(например, `addPreset('STR')` после ручного `addFunction({ name: 'STR', … })`) бросает ошибку обычного
+механизма `assertNameFree`. Пресеты можно комбинировать в любом порядке.
 
 ```ts
 const g = new Genby()
-g.addPreset('control')
-g.addPreset('loops')
-g.addPreset('arrays')
-g.addPreset('cast')
+g.addPreset('IF')
+g.addPreset('WHILE')
+g.addPreset('RANGE')
+g.addPreset('STR')
 ```
 
 Регистрация enum-ов идёт по внутреннему ключу (`enumKey`). Конечный пользователь

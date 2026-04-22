@@ -2,37 +2,18 @@ import { ANY, BUL, NUM, STR, isEnumValue, type Thunk, type Value } from './types
 import type { Genby } from './genby.js';
 
 /**
- * Named collections of ready-made functions (and, where relevant, types) that
- * can be added to a {@link Genby} instance in one call via
- * {@link Genby.addPreset}. Preset names are fixed; pick any combination that
- * matches your embedded language.
+ * Ready-made function presets. Every preset registers exactly one function
+ * (and, where relevant, the supporting type/directive) under the matching
+ * name. Add them via {@link Genby.addPreset}; names are the canonical
+ * function names themselves, e.g. `g.addPreset('IF')` or `g.addPreset('RANGE')`.
  */
-export const PRESET_NAMES = ['control', 'loops', 'arrays', 'cast'] as const;
-
-export type PresetName = (typeof PRESET_NAMES)[number];
-
-export function applyPreset(g: Genby, name: PresetName): void {
-  switch (name) {
-    case 'control':
-      applyControl(g);
-      return;
-    case 'loops':
-      applyLoops(g);
-      return;
-    case 'arrays':
-      applyArrays(g);
-      return;
-    case 'cast':
-      applyCast(g);
-      return;
-  }
-}
+type Apply = (g: Genby) => void;
 
 // ---------------------------------------------------------------------------
 // control: IF / WHEN / UNLESS / AND / OR / NOT / EQ / NEQ / COALESCE / CHOOSE / CASE
 // ---------------------------------------------------------------------------
 
-function applyControl(g: Genby): void {
+const applyIF: Apply = (g) => {
   g.addFunction({
     name: 'IF',
     describe:
@@ -55,7 +36,9 @@ function applyControl(g: Genby): void {
       return '';
     },
   });
+};
 
+const applyWHEN: Apply = (g) => {
   g.addFunction({
     name: 'WHEN',
     describe: 'returns `then` when `cond` is truthy, else empty string',
@@ -67,7 +50,9 @@ function applyControl(g: Genby): void {
     handler: async ([cond, thenT]) =>
       truthy(cond) ? (thenT as Thunk)() : '',
   });
+};
 
+const applyUNLESS: Apply = (g) => {
   g.addFunction({
     name: 'UNLESS',
     describe: 'returns `then` when `cond` is falsy, else empty string',
@@ -79,7 +64,9 @@ function applyControl(g: Genby): void {
     handler: async ([cond, thenT]) =>
       truthy(cond) ? '' : (thenT as Thunk)(),
   });
+};
 
+const applyAND: Apply = (g) => {
   g.addFunction({
     name: 'AND',
     describe: 'short-circuit logical AND; returns true if every arg is truthy',
@@ -93,7 +80,9 @@ function applyControl(g: Genby): void {
       return true;
     },
   });
+};
 
+const applyOR: Apply = (g) => {
   g.addFunction({
     name: 'OR',
     describe: 'short-circuit logical OR; returns true if any arg is truthy',
@@ -107,7 +96,9 @@ function applyControl(g: Genby): void {
       return false;
     },
   });
+};
 
+const applyNOT: Apply = (g) => {
   g.addFunction({
     name: 'NOT',
     describe: 'logical NOT (truthy coercion)',
@@ -115,7 +106,9 @@ function applyControl(g: Genby): void {
     returns: BUL,
     handler: ([v]) => !truthy(v),
   });
+};
 
+const applyEQ: Apply = (g) => {
   g.addFunction({
     name: 'EQ',
     describe: 'strict equality over any two values (enums by name)',
@@ -126,7 +119,9 @@ function applyControl(g: Genby): void {
     returns: BUL,
     handler: ([a, b]) => strictEq(a, b),
   });
+};
 
+const applyNEQ: Apply = (g) => {
   g.addFunction({
     name: 'NEQ',
     describe: 'strict inequality (inverse of EQ)',
@@ -137,7 +132,9 @@ function applyControl(g: Genby): void {
     returns: BUL,
     handler: ([a, b]) => !strictEq(a, b),
   });
+};
 
+const applyCOALESCE: Apply = (g) => {
   g.addFunction({
     name: 'COALESCE',
     describe: 'first argument that is neither empty, null, nor undefined',
@@ -151,7 +148,9 @@ function applyControl(g: Genby): void {
       return '';
     },
   });
+};
 
+const applyCHOOSE: Apply = (g) => {
   g.addFunction({
     name: 'CHOOSE',
     describe:
@@ -168,7 +167,9 @@ function applyControl(g: Genby): void {
       return (picked as Thunk)();
     },
   });
+};
 
+const applyCASE: Apply = (g) => {
   g.addFunction({
     name: 'CASE',
     describe:
@@ -193,7 +194,7 @@ function applyControl(g: Genby): void {
       return '';
     },
   });
-}
+};
 
 // ---------------------------------------------------------------------------
 // loops: FOR / TIMES / WHILE
@@ -201,7 +202,7 @@ function applyControl(g: Genby): void {
 
 const WHILE_GUARD = 1_000_000;
 
-function applyLoops(g: Genby): void {
+const applyFOR: Apply = (g) => {
   g.addFunction({
     name: 'FOR',
     describe:
@@ -216,7 +217,9 @@ function applyLoops(g: Genby): void {
       for (let i = 0; i < n; i++) await (body as Thunk)();
     },
   });
+};
 
+const applyTIMES: Apply = (g) => {
   g.addFunction({
     name: 'TIMES',
     describe:
@@ -236,7 +239,9 @@ function applyLoops(g: Genby): void {
       return out.join(String(sep ?? ''));
     },
   });
+};
 
+const applyWHILE: Apply = (g) => {
   g.addFunction({
     name: 'WHILE',
     describe: `runs body while cond is truthy (cond and body both lazy; capped at ${WHILE_GUARD.toLocaleString('en-US')} iterations)`,
@@ -256,18 +261,22 @@ function applyLoops(g: Genby): void {
       );
     },
   });
-}
+};
 
 // ---------------------------------------------------------------------------
-// arrays: registers the ARR type and adds constructors / helpers
+// arrays: ARR type is auto-registered by any array-oriented preset
 // ---------------------------------------------------------------------------
 
-function applyArrays(g: Genby): void {
+function ensureArrType(g: Genby): void {
+  if (g.hasType('ARR')) return;
   g.addType('ARR', {
     describe: 'ordered list of values (JS array under the hood)',
     stringify: (v) => JSON.stringify(v),
   });
+}
 
+const applyARR: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'ARR',
     describe: 'construct an ARR from any number of items',
@@ -275,7 +284,10 @@ function applyArrays(g: Genby): void {
     returns: 'ARR',
     handler: (items) => [...(items as Value[])],
   });
+};
 
+const applyRANGE: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'RANGE',
     describe:
@@ -294,7 +306,10 @@ function applyArrays(g: Genby): void {
       return out;
     },
   });
+};
 
+const applySIZE: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'SIZE',
     describe: 'length of an ARR',
@@ -302,7 +317,10 @@ function applyArrays(g: Genby): void {
     returns: NUM,
     handler: ([arr]) => (Array.isArray(arr) ? arr.length : 0),
   });
+};
 
+const applyAT: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'AT',
     describe:
@@ -319,23 +337,34 @@ function applyArrays(g: Genby): void {
       return v === undefined ? '' : v;
     },
   });
+};
 
+const applyFIRST: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'FIRST',
+    describe: 'first element of an ARR, or empty string if the ARR is empty',
     args: [{ name: 'arr', type: 'ARR' }],
     returns: ANY,
     handler: ([arr]) =>
       Array.isArray(arr) && arr.length > 0 ? arr[0] : '',
   });
+};
 
+const applyLAST: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'LAST',
+    describe: 'last element of an ARR, or empty string if the ARR is empty',
     args: [{ name: 'arr', type: 'ARR' }],
     returns: ANY,
     handler: ([arr]) =>
       Array.isArray(arr) && arr.length > 0 ? arr[arr.length - 1] : '',
   });
+};
 
+const applySLICE: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'SLICE',
     describe: 'shallow copy of a slice [from, to) of an ARR',
@@ -353,7 +382,10 @@ function applyArrays(g: Genby): void {
       return arr.slice(a, b);
     },
   });
+};
 
+const applyCONCAT: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'CONCAT',
     describe: 'concatenate any number of ARRs into a new ARR',
@@ -365,7 +397,10 @@ function applyArrays(g: Genby): void {
       return out;
     },
   });
+};
 
+const applyREVERSE: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'REVERSE',
     describe: 'new ARR with items in reverse order',
@@ -373,7 +408,10 @@ function applyArrays(g: Genby): void {
     returns: 'ARR',
     handler: ([arr]) => (Array.isArray(arr) ? [...arr].reverse() : []),
   });
+};
 
+const applyPUSH: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'PUSH',
     describe: 'new ARR with `item` appended',
@@ -385,7 +423,10 @@ function applyArrays(g: Genby): void {
     handler: ([arr, item]) =>
       Array.isArray(arr) ? [...arr, item] : [item],
   });
+};
 
+const applyCONTAINS: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'CONTAINS',
     describe: 'true if ARR contains an item strict-equal to `item`',
@@ -397,7 +438,10 @@ function applyArrays(g: Genby): void {
     handler: ([arr, item]) =>
       Array.isArray(arr) ? arr.some((x) => strictEq(x, item)) : false,
   });
+};
 
+const applyINDEX_OF: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'INDEX_OF',
     describe: 'first index of `item` in ARR, or -1',
@@ -409,7 +453,10 @@ function applyArrays(g: Genby): void {
     handler: ([arr, item]) =>
       Array.isArray(arr) ? arr.findIndex((x) => strictEq(x, item)) : -1,
   });
+};
 
+const applySPLIT: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'SPLIT',
     describe: 'split a string by a separator into an ARR of STR',
@@ -420,7 +467,10 @@ function applyArrays(g: Genby): void {
     returns: 'ARR',
     handler: ([s, sep]) => String(s ?? '').split(String(sep ?? '')),
   });
+};
 
+const applyJOIN: Apply = (g) => {
+  ensureArrType(g);
   g.addFunction({
     name: 'JOIN',
     describe: 'join an ARR into a string using `sep`',
@@ -434,13 +484,13 @@ function applyArrays(g: Genby): void {
         ? arr.map(basicString).join(String(sep ?? ''))
         : '',
   });
-}
+};
 
 // ---------------------------------------------------------------------------
 // cast: STR / NUM / BUL / INT
 // ---------------------------------------------------------------------------
 
-function applyCast(g: Genby): void {
+const applySTR: Apply = (g) => {
   g.addFunction({
     name: 'STR',
     describe:
@@ -449,7 +499,9 @@ function applyCast(g: Genby): void {
     returns: STR,
     handler: ([v]) => basicString(v),
   });
+};
 
+const applyNUM: Apply = (g) => {
   g.addFunction({
     name: 'NUM',
     describe:
@@ -468,7 +520,9 @@ function applyCast(g: Genby): void {
       return Number.isFinite(n) ? n : 0;
     },
   });
+};
 
+const applyBUL: Apply = (g) => {
   g.addFunction({
     name: 'BUL',
     describe: 'coerce any value to BUL (truthy test)',
@@ -476,7 +530,9 @@ function applyCast(g: Genby): void {
     returns: BUL,
     handler: ([v]) => truthy(v),
   });
+};
 
+const applyINT: Apply = (g) => {
   g.addFunction({
     name: 'INT',
     describe: 'floor-truncate any value to an integer NUM',
@@ -488,6 +544,262 @@ function applyCast(g: Genby): void {
       return Number.isFinite(n) ? Math.trunc(n) : 0;
     },
   });
+};
+
+// ---------------------------------------------------------------------------
+// math: ADD / MUL / POW / SQRT
+// ---------------------------------------------------------------------------
+
+const applyADD: Apply = (g) => {
+  g.addFunction({
+    name: 'ADD',
+    describe: 'sum of two numbers',
+    args: [
+      { name: 'a', type: NUM },
+      { name: 'b', type: NUM },
+    ],
+    returns: NUM,
+    handler: ([a, b]) => Number(a) + Number(b),
+  });
+};
+
+const applyMUL: Apply = (g) => {
+  g.addFunction({
+    name: 'MUL',
+    describe: 'product of two numbers',
+    args: [
+      { name: 'a', type: NUM },
+      { name: 'b', type: NUM },
+    ],
+    returns: NUM,
+    handler: ([a, b]) => Number(a) * Number(b),
+  });
+};
+
+const applyPOW: Apply = (g) => {
+  g.addFunction({
+    name: 'POW',
+    describe: 'raise `base` to the given `exp` power',
+    args: [
+      { name: 'base', type: NUM },
+      { name: 'exp', type: NUM },
+    ],
+    returns: NUM,
+    handler: ([b, e]) => Math.pow(Number(b), Number(e)),
+  });
+};
+
+const applySQRT: Apply = (g) => {
+  g.addFunction({
+    name: 'SQRT',
+    describe: 'square root of a non-negative number (negative inputs clamp to 0)',
+    args: [{ name: 'n', type: NUM }],
+    returns: NUM,
+    handler: ([n]) => Math.sqrt(Math.max(0, Number(n))),
+  });
+};
+
+// ---------------------------------------------------------------------------
+// strings: UPPER / LOWER / REPEAT / REPLACE / LEN
+// ---------------------------------------------------------------------------
+
+const applyUPPER: Apply = (g) => {
+  g.addFunction({
+    name: 'UPPER',
+    describe: 'upper-case a string',
+    args: [{ name: 's', type: STR }],
+    returns: STR,
+    handler: ([s]) => String(s ?? '').toUpperCase(),
+  });
+};
+
+const applyLOWER: Apply = (g) => {
+  g.addFunction({
+    name: 'LOWER',
+    describe: 'lower-case a string',
+    args: [{ name: 's', type: STR }],
+    returns: STR,
+    handler: ([s]) => String(s ?? '').toLowerCase(),
+  });
+};
+
+const applyREPEAT: Apply = (g) => {
+  g.addFunction({
+    name: 'REPEAT',
+    describe: 'repeat a string `n` times',
+    args: [
+      { name: 's', type: STR },
+      { name: 'n', type: NUM },
+    ],
+    returns: STR,
+    handler: ([s, n]) =>
+      String(s ?? '').repeat(Math.max(0, Math.floor(Number(n) || 0))),
+  });
+};
+
+const applyREPLACE: Apply = (g) => {
+  g.addFunction({
+    name: 'REPLACE',
+    describe: 'replace every occurrence of `needle` with `replacement`',
+    args: [
+      { name: 'haystack', type: STR },
+      { name: 'needle', type: STR },
+      { name: 'replacement', type: STR },
+    ],
+    returns: STR,
+    handler: ([h, n, r]) =>
+      String(h ?? '').split(String(n ?? '')).join(String(r ?? '')),
+  });
+};
+
+const applyLEN: Apply = (g) => {
+  g.addFunction({
+    name: 'LEN',
+    describe: 'length of a string',
+    args: [{ name: 's', type: STR }],
+    returns: NUM,
+    handler: ([s]) => String(s ?? '').length,
+  });
+};
+
+// ---------------------------------------------------------------------------
+// async: FETCH_JSON (+ @API_BASE directive) / SHA256 / SHORT
+// ---------------------------------------------------------------------------
+
+const applyFETCH_JSON: Apply = (g) => {
+  // each preset invocation gets its own apiBase closure so multiple Genby
+  // instances never share mutable state.
+  let apiBase = '';
+  g.addDirective({
+    name: 'API_BASE',
+    describe: 'override the base URL prefixed to FETCH_JSON paths',
+    args: [{ name: 'url', type: STR }],
+    handler: ([url]) => {
+      apiBase = String(url ?? '');
+    },
+  });
+  g.addFunction({
+    name: 'FETCH_JSON',
+    describe:
+      'async HTTP GET `@API_BASE + path`. With a 2nd arg, returns that ' +
+      'top-level JSON field; otherwise returns the full JSON text.',
+    args: [
+      { name: 'path', type: STR },
+      { name: 'field', type: STR, optional: true },
+    ],
+    returns: STR,
+    handler: async ([path, field]) => {
+      const url = apiBase + String(path ?? '');
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+      }
+      const data = (await res.json()) as Record<string, unknown>;
+      if (field !== undefined && field !== null && field !== '') {
+        return String(data[String(field)] ?? '');
+      }
+      return JSON.stringify(data, null, 2);
+    },
+  });
+};
+
+const applySHA256: Apply = (g) => {
+  g.addFunction({
+    name: 'SHA256',
+    describe: 'async hex SHA-256 digest via globalThis.crypto.subtle',
+    args: [{ name: 'text', type: STR }],
+    returns: STR,
+    handler: async ([text]) => {
+      const buf = new TextEncoder().encode(String(text ?? ''));
+      const digest = await crypto.subtle.digest('SHA-256', buf);
+      return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    },
+  });
+};
+
+const applySHORT: Apply = (g) => {
+  g.addFunction({
+    name: 'SHORT',
+    describe: 'trim a string to the first `n` chars, appending an ellipsis',
+    args: [
+      { name: 's', type: STR },
+      { name: 'n', type: NUM },
+    ],
+    returns: STR,
+    handler: ([s, n]) => {
+      const str = String(s ?? '');
+      const len = Math.max(0, Math.floor(Number(n) || 0));
+      return str.length > len ? str.slice(0, len) + '…' : str;
+    },
+  });
+};
+
+// ---------------------------------------------------------------------------
+// preset registry
+// ---------------------------------------------------------------------------
+
+const PRESETS = {
+  // control
+  IF: applyIF,
+  WHEN: applyWHEN,
+  UNLESS: applyUNLESS,
+  AND: applyAND,
+  OR: applyOR,
+  NOT: applyNOT,
+  EQ: applyEQ,
+  NEQ: applyNEQ,
+  COALESCE: applyCOALESCE,
+  CHOOSE: applyCHOOSE,
+  CASE: applyCASE,
+  // loops
+  FOR: applyFOR,
+  TIMES: applyTIMES,
+  WHILE: applyWHILE,
+  // arrays
+  ARR: applyARR,
+  RANGE: applyRANGE,
+  SIZE: applySIZE,
+  AT: applyAT,
+  FIRST: applyFIRST,
+  LAST: applyLAST,
+  SLICE: applySLICE,
+  CONCAT: applyCONCAT,
+  REVERSE: applyREVERSE,
+  PUSH: applyPUSH,
+  CONTAINS: applyCONTAINS,
+  INDEX_OF: applyINDEX_OF,
+  SPLIT: applySPLIT,
+  JOIN: applyJOIN,
+  // cast
+  STR: applySTR,
+  NUM: applyNUM,
+  BUL: applyBUL,
+  INT: applyINT,
+  // math
+  ADD: applyADD,
+  MUL: applyMUL,
+  POW: applyPOW,
+  SQRT: applySQRT,
+  // strings
+  UPPER: applyUPPER,
+  LOWER: applyLOWER,
+  REPEAT: applyREPEAT,
+  REPLACE: applyREPLACE,
+  LEN: applyLEN,
+  // async
+  FETCH_JSON: applyFETCH_JSON,
+  SHA256: applySHA256,
+  SHORT: applySHORT,
+} as const;
+
+export type PresetName = keyof typeof PRESETS;
+export const PRESET_NAMES = Object.keys(PRESETS) as readonly PresetName[];
+
+export function applyPreset(g: Genby, name: PresetName): void {
+  const fn = PRESETS[name];
+  fn(g);
 }
 
 // ---------------------------------------------------------------------------

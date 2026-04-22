@@ -7,65 +7,7 @@ import {
     ANY,
     makeEnumValue,
 } from '../dist/index.js';
-
-// -----------------------------------------------------------------
-// defaults
-// -----------------------------------------------------------------
-
-const DEFAULT_CONFIG = `// declare your language here.
-// scope: Genby, STR, NUM, BUL, ENUM, ANY, makeEnumValue.
-// return the configured Genby instance.
-//
-// quick start: register a bundle of ready-made helpers via g.addPreset().
-// available presets: 'control', 'loops', 'arrays', 'cast'.
-
-const g = new Genby();
-
-// curated bundles of functions (and types) — see docs panel for details.
-g.addPreset('control'); // IF / WHEN / UNLESS / AND / OR / NOT / EQ / NEQ / COALESCE / CHOOSE / CASE
-g.addPreset('loops');   // FOR / TIMES / WHILE
-g.addPreset('arrays');  // ARR type + ARR / RANGE / SIZE / AT / FIRST / LAST / SLICE / CONCAT / REVERSE / PUSH / CONTAINS / INDEX_OF / SPLIT / JOIN
-g.addPreset('cast');    // STR / NUM / BUL / INT
-
-// --- custom bits on top of the presets -------------------------------
-
-let prefix = '';
-
-g.addDirective({
-    name: 'PREFIX',
-    describe: 'sets a prefix that SOME_PROCESS prepends to its result',
-    args: [{ name: 'text', type: STR, describe: 'prefix text' }],
-    handler: ([text]) => { prefix = String(text ?? ''); },
-});
-
-g.addFunction({
-    name: 'SOME_PROCESS',
-    describe: 'trims, upper-cases, and prepends the @PREFIX value',
-    args: [{ name: 'text', type: STR, describe: 'text to process' }],
-    returns: STR,
-    handler: async ([text]) => prefix + String(text ?? '').trim().toUpperCase(),
-});
-
-return g;
-`;
-
-const DEFAULT_PROGRAM = `// user-defined function and a lazy FOR — ends up at 4 (1 + 1 + 1 + 1).
-x = 1
-
-func(a) = (
-  x = NUM(x) + NUM(a)
-)
-
-FOR(3, (func(3) func(-2)))
-
-// ARR pipeline — SPLIT / JOIN / SIZE from the 'arrays' preset
-items = SPLIT("alpha,beta,gamma", ",")
-joined = JOIN(items, " | ")
-
-// control-flow preset: IF picks the truthy branch lazily
-label = IF(SIZE(items), "has items", "empty")
-
-RETURN("x={x} items={items} size={SIZE(items)} joined={joined} label={label}")`;
+import { EXAMPLES } from './examples.js';
 
 // -----------------------------------------------------------------
 // dom refs
@@ -93,6 +35,11 @@ const runRight = document.getElementById('runRight');
 
 const installBtn = document.getElementById('installBtn');
 const installLabel = document.getElementById('installLabel');
+
+const exampleSelect = document.getElementById('exampleSelect');
+const exampleSelectTrigger = document.getElementById('exampleSelectTrigger');
+const exampleSelectLabel = document.getElementById('exampleSelectLabel');
+const exampleSelectPopup = document.getElementById('exampleSelectPopup');
 
 if (installBtn && installLabel) {
     let resetTimer = 0;
@@ -320,6 +267,7 @@ function setMsg(el, text) {
 
 let currentMachine = null;
 let currentInput = null;
+let currentProgram = EXAMPLES[0]?.program ?? '';
 
 // -----------------------------------------------------------------
 // actions
@@ -420,8 +368,11 @@ function mountInput(machine) {
     genbyHost.innerHTML = '';
     const input = machine.inputDom();
     genbyHost.appendChild(input.element);
-    input.setValue(DEFAULT_PROGRAM);
-    input.onChange(() => refreshProgramCheck(input));
+    input.setValue(currentProgram);
+    input.onChange(() => {
+        currentProgram = input.getValue();
+        refreshProgramCheck(input);
+    });
     refreshProgramCheck(input);
     currentInput = input;
 }
@@ -507,6 +458,153 @@ document.querySelectorAll('.resizeHandle[data-resize-target]').forEach((handle) 
     });
 });
 
-configInput.value = DEFAULT_CONFIG;
+// -----------------------------------------------------------------
+// examples dropdown (custom)
+// -----------------------------------------------------------------
+
+let selectedExampleId = null;
+let activeExampleIndex = -1;
+
+function populateExamples() {
+    if (!exampleSelectPopup) return;
+    exampleSelectPopup.innerHTML = '';
+    EXAMPLES.forEach((ex, idx) => {
+        const li = document.createElement('li');
+        li.className = 'example-select__option';
+        li.setAttribute('role', 'option');
+        li.dataset.value = ex.id;
+        li.dataset.index = String(idx);
+        li.textContent = ex.label;
+        li.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            selectExample(ex.id);
+            closeExamplePopup();
+        });
+        li.addEventListener('mouseenter', () => setActiveIndex(idx));
+        exampleSelectPopup.appendChild(li);
+    });
+}
+
+function syncExampleUi() {
+    if (!exampleSelectPopup) return;
+    const options = exampleSelectPopup.querySelectorAll('.example-select__option');
+    options.forEach((el) => {
+        const isSelected = el.dataset.value === selectedExampleId;
+        el.classList.toggle('is-selected', isSelected);
+        const idx = Number(el.dataset.index);
+        el.classList.toggle('is-active', idx === activeExampleIndex);
+        if (isSelected) el.setAttribute('aria-selected', 'true');
+        else el.removeAttribute('aria-selected');
+    });
+    if (exampleSelectLabel) {
+        const ex = EXAMPLES.find((e) => e.id === selectedExampleId);
+        exampleSelectLabel.textContent = ex?.label ?? '';
+    }
+}
+
+function setActiveIndex(idx) {
+    if (idx < 0 || idx >= EXAMPLES.length) return;
+    activeExampleIndex = idx;
+    syncExampleUi();
+    const el = exampleSelectPopup?.querySelector(`.example-select__option[data-index="${idx}"]`);
+    if (el) el.scrollIntoView({ block: 'nearest' });
+}
+
+function openExamplePopup() {
+    if (!exampleSelect || !exampleSelectPopup) return;
+    exampleSelectPopup.hidden = false;
+    exampleSelect.classList.add('is-open');
+    exampleSelectTrigger?.setAttribute('aria-expanded', 'true');
+    const selectedIdx = EXAMPLES.findIndex((e) => e.id === selectedExampleId);
+    activeExampleIndex = selectedIdx >= 0 ? selectedIdx : 0;
+    syncExampleUi();
+    const el = exampleSelectPopup.querySelector(`.example-select__option[data-index="${activeExampleIndex}"]`);
+    if (el) el.scrollIntoView({ block: 'nearest' });
+}
+
+function closeExamplePopup() {
+    if (!exampleSelect || !exampleSelectPopup) return;
+    exampleSelectPopup.hidden = true;
+    exampleSelect.classList.remove('is-open');
+    exampleSelectTrigger?.setAttribute('aria-expanded', 'false');
+}
+
+function toggleExamplePopup() {
+    if (exampleSelectPopup?.hidden) openExamplePopup();
+    else closeExamplePopup();
+}
+
+function selectExample(id) {
+    const ex = EXAMPLES.find((e) => e.id === id) ?? EXAMPLES[0];
+    if (!ex) return;
+    selectedExampleId = ex.id;
+    syncExampleUi();
+    currentProgram = ex.program;
+    configInput.value = ex.config;
+    updateConfigHighlight();
+    syncConfigScroll();
+    buildMachine();
+}
+
+if (exampleSelect && exampleSelectTrigger && exampleSelectPopup) {
+    populateExamples();
+
+    exampleSelectTrigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        toggleExamplePopup();
+    });
+
+    exampleSelectTrigger.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            if (exampleSelectPopup.hidden) openExamplePopup();
+        } else if (e.key === 'Escape') {
+            if (!exampleSelectPopup.hidden) { e.preventDefault(); closeExamplePopup(); }
+        }
+    });
+
+    exampleSelect.addEventListener('keydown', (e) => {
+        if (exampleSelectPopup.hidden) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setActiveIndex(Math.min(EXAMPLES.length - 1, activeExampleIndex + 1));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setActiveIndex(Math.max(0, activeExampleIndex - 1));
+        } else if (e.key === 'Home') {
+            e.preventDefault();
+            setActiveIndex(0);
+        } else if (e.key === 'End') {
+            e.preventDefault();
+            setActiveIndex(EXAMPLES.length - 1);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const ex = EXAMPLES[activeExampleIndex];
+            if (ex) selectExample(ex.id);
+            closeExamplePopup();
+            exampleSelectTrigger.focus();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            closeExamplePopup();
+            exampleSelectTrigger.focus();
+        }
+    });
+
+    document.addEventListener('mousedown', (e) => {
+        if (exampleSelectPopup.hidden) return;
+        if (!exampleSelect.contains(e.target)) closeExamplePopup();
+    });
+
+    window.addEventListener('blur', () => closeExamplePopup());
+    window.addEventListener('resize', () => closeExamplePopup());
+    window.addEventListener('scroll', () => closeExamplePopup(), true);
+}
+
+const initialExample = EXAMPLES[0];
+if (initialExample) {
+    selectedExampleId = initialExample.id;
+    syncExampleUi();
+}
+configInput.value = initialExample?.config ?? '';
 updateConfigHighlight();
 buildMachine();
