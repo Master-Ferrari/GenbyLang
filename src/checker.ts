@@ -15,6 +15,7 @@ import { STR, NUM, BUL, ENUM, ANY } from './types.js';
 import {
   RETURN,
   describeArg,
+  isBuiltinType,
   isReservedName,
   type LangConfig,
 } from './config.js';
@@ -26,6 +27,7 @@ export type ResolvedType =
   | { kind: typeof BUL }
   | { kind: typeof ENUM; enumKey: string }
   | { kind: typeof ANY } // wildcard for user-fn params / coercion results
+  | { kind: 'CUSTOM'; name: string }
   | { kind: 'VOID' };
 
 export interface CheckOutput {
@@ -40,6 +42,12 @@ export interface CheckOutput {
   identInfo: Map<number, IdentCategory>;
   /** User function definitions, collected from the program (hoisted). */
   userFunctions: Map<string, UserFunDefStatement>;
+  /**
+   * For each interpolated expression inside a string literal (keyed by its
+   * expr span.start), the statically-inferred ResolvedType. Lets the
+   * interpreter pick the right `TypeDef.stringify` hook for custom types.
+   */
+  interpTypes: Map<number, ResolvedType>;
 }
 
 export type IdentCategory =
@@ -71,6 +79,7 @@ export function check(program: Program, config: LangConfig): CheckOutput {
     callInfo: checker.callInfo,
     identInfo: checker.identInfo,
     userFunctions: checker.userFunctions,
+    interpTypes: checker.interpTypes,
   };
 }
 
@@ -80,6 +89,7 @@ class Checker {
   readonly callInfo = new WeakMap<CallExpr, CallInfo>();
   readonly identInfo = new Map<number, IdentCategory>();
   readonly userFunctions = new Map<string, UserFunDefStatement>();
+  readonly interpTypes = new Map<number, ResolvedType>();
   returnType: ResolvedType | null = null;
 
   constructor(private readonly config: LangConfig) {}
@@ -310,6 +320,7 @@ class Checker {
     for (const part of s.parts) {
       if (part.kind === 'expr') {
         const t = this.inferExpr(part.expr);
+        this.interpTypes.set(part.expr.span.start, t);
         if (t.kind === 'VOID') {
           this.err(
             part.span,
@@ -586,12 +597,16 @@ class Checker {
 
 function typeSpecToResolved(type: Type, enumKey?: string): ResolvedType {
   if (type === ENUM) return { kind: ENUM, enumKey: enumKey ?? '' };
-  return { kind: type };
+  if (isBuiltinType(type)) {
+    return { kind: type as typeof STR | typeof NUM | typeof BUL | typeof ANY };
+  }
+  return { kind: 'CUSTOM', name: type };
 }
 
 function sameType(a: ResolvedType, b: ResolvedType): boolean {
   if (a.kind !== b.kind) return false;
   if (a.kind === ENUM && b.kind === ENUM) return a.enumKey === b.enumKey;
+  if (a.kind === 'CUSTOM' && b.kind === 'CUSTOM') return a.name === b.name;
   return true;
 }
 
@@ -602,6 +617,7 @@ function matchesExpected(expected: ResolvedType, actual: ResolvedType): boolean 
 
 function formatType(t: ResolvedType): string {
   if (t.kind === ENUM) return `ENUM<${t.enumKey}>`;
+  if (t.kind === 'CUSTOM') return t.name;
   return t.kind;
 }
 

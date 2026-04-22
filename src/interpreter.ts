@@ -13,6 +13,7 @@ import type {
 import type { EnumValue, GenbyError, HandlerArg, Value } from './types.js';
 import { isEnumValue, makeEnumValue } from './types.js';
 import { RETURN, type LangConfig } from './config.js';
+import type { ResolvedType } from './checker.js';
 
 export class GenbyRuntimeError extends Error {
   constructor(
@@ -54,10 +55,20 @@ export async function runDirectives(
   }
 }
 
+export interface RunOptions {
+  /**
+   * Statically-inferred types of interpolated expressions (keyed by expr
+   * span.start). When present, the interpreter uses the matching
+   * `TypeDef.stringify` hook for custom-typed values.
+   */
+  interpTypes?: Map<number, ResolvedType>;
+}
+
 export async function runProgram(
   program: Program,
   config: LangConfig,
   inputs: Record<string, Value>,
+  options: RunOptions = {},
 ): Promise<Value> {
   await runDirectives(program, config);
 
@@ -77,12 +88,19 @@ export async function runProgram(
     if (stmt.kind === 'UserFunDef') userFunctions.set(stmt.name, stmt);
   }
 
+  const ctx: EvalContext = {
+    config,
+    inputs,
+    userFns: userFunctions,
+    interpTypes: options.interpTypes ?? new Map(),
+  };
+
   for (const stmt of program.statements) {
     if (stmt.kind === 'Assign') {
-      const v = await evalExpr(stmt.value, config, env, inputs, userFunctions);
+      const v = await evalExpr(stmt.value, env, ctx);
       env.set(stmt.name, v);
     } else if (stmt.kind === 'ExprStmt') {
-      await evalExpr(stmt.expr, config, env, inputs, userFunctions);
+      await evalExpr(stmt.expr, env, ctx);
     }
     // UserFunDef: nothing to execute — already hoisted.
   }
@@ -90,86 +108,79 @@ export async function runProgram(
   if (!program.returnStmt) {
     throw new GenbyRuntimeError(`Missing RETURN(...)`, program.span, 'missing_return');
   }
-  return evalExpr(
-    program.returnStmt.expr,
-    config,
-    env,
-    inputs,
-    userFunctions,
-  );
+  return evalExpr(program.returnStmt.expr, env, ctx);
 }
 
 type UserFnMap = Map<string, UserFunDefStatement>;
 
+interface EvalContext {
+  config: LangConfig;
+  inputs: Record<string, Value>;
+  userFns: UserFnMap;
+  interpTypes: Map<number, ResolvedType>;
+}
+
 async function evalExpr(
   expr: Expression,
-  config: LangConfig,
   env: Map<string, Value>,
-  inputs: Record<string, Value>,
-  userFns: UserFnMap,
+  ctx: EvalContext,
 ): Promise<Value> {
   switch (expr.kind) {
     case 'NumberLit':
       return expr.value;
     case 'StringLit':
-      return evalString(expr, config, env, inputs, userFns);
+      return evalString(expr, env, ctx);
     case 'Ident':
-      return evalIdent(expr.name, expr.span, config, env, inputs);
+      return evalIdent(expr.name, expr.span, env, ctx);
     case 'Unary':
-      return evalUnary(expr, config, env, inputs, userFns);
+      return evalUnary(expr, env, ctx);
     case 'Binary':
-      return evalBinary(expr, config, env, inputs, userFns);
+      return evalBinary(expr, env, ctx);
     case 'Call':
-      return evalCall(expr, config, env, inputs, userFns);
+      return evalCall(expr, env, ctx);
     case 'Block':
-      return evalBlock(expr, config, env, inputs, userFns);
+      return evalBlock(expr, env, ctx);
   }
 }
 
 async function evalBlock(
   block: BlockExpr,
-  config: LangConfig,
   env: Map<string, Value>,
-  inputs: Record<string, Value>,
-  userFns: UserFnMap,
+  ctx: EvalContext,
 ): Promise<Value> {
   let last: Value = undefined;
   for (const s of block.statements) {
-    last = await execBlockStatement(s, config, env, inputs, userFns);
+    last = await execBlockStatement(s, env, ctx);
   }
   return last;
 }
 
 async function execBlockStatement(
   stmt: BlockStatement,
-  config: LangConfig,
   env: Map<string, Value>,
-  inputs: Record<string, Value>,
-  userFns: UserFnMap,
+  ctx: EvalContext,
 ): Promise<Value> {
   if (stmt.kind === 'Assign') {
-    const v = await evalExpr(stmt.value, config, env, inputs, userFns);
+    const v = await evalExpr(stmt.value, env, ctx);
     env.set(stmt.name, v);
     return undefined;
   }
-  // ExprStmt
-  return evalExpr(stmt.expr, config, env, inputs, userFns);
+  return evalExpr(stmt.expr, env, ctx);
 }
 
 async function evalString(
   s: StringLiteral,
-  config: LangConfig,
   env: Map<string, Value>,
-  inputs: Record<string, Value>,
-  userFns: UserFnMap,
+  ctx: EvalContext,
 ): Promise<string> {
   const out: string[] = [];
   for (const part of s.parts) {
     if (part.kind === 'text') {
       out.push(part.value);
     } else {
-      const v = await evalExpr(part.expr, config, env, inputs, userFns);
-      out.push(stringify(v, part.span));
+      const v = await evalExpr(part.expr, env, ctx);
+      const declared = ctx.interpTypes.get(part.expr.span.start);
+      out.push(stringify(v, part.span, ctx.config, declared));
     }
   }
   return out.join('');
@@ -178,9 +189,8 @@ async function evalString(
 function evalIdent(
   name: string,
   span: SourceSpan,
-  config: LangConfig,
   env: Map<string, Value>,
-  inputs: Record<string, Value>,
+  ctx: EvalContext,
 ): Value {
   if (env.has(name)) {
     const v = env.get(name);
@@ -192,17 +202,17 @@ function evalIdent(
     }
     return v;
   }
-  if (config.variables.has(name)) {
-    if (!(name in inputs)) {
+  if (ctx.config.variables.has(name)) {
+    if (!(name in ctx.inputs)) {
       throw new GenbyRuntimeError(
         `Missing input value for variable '${name}'`,
         span,
       );
     }
-    return inputs[name]!;
+    return ctx.inputs[name]!;
   }
-  if (config.enumValueIndex.has(name)) {
-    const enumKey = config.enumValueIndex.get(name)!;
+  if (ctx.config.enumValueIndex.has(name)) {
+    const enumKey = ctx.config.enumValueIndex.get(name)!;
     return makeEnumValue(enumKey, name);
   }
   throw new GenbyRuntimeError(`Unknown identifier '${name}'`, span);
@@ -210,12 +220,10 @@ function evalIdent(
 
 async function evalUnary(
   expr: UnaryExpr,
-  config: LangConfig,
   env: Map<string, Value>,
-  inputs: Record<string, Value>,
-  userFns: UserFnMap,
+  ctx: EvalContext,
 ): Promise<Value> {
-  const v = await evalExpr(expr.operand, config, env, inputs, userFns);
+  const v = await evalExpr(expr.operand, env, ctx);
   if (expr.op === '-') {
     if (typeof v !== 'number') {
       throw new GenbyRuntimeError(
@@ -231,13 +239,11 @@ async function evalUnary(
 
 async function evalBinary(
   expr: BinaryExpr,
-  config: LangConfig,
   env: Map<string, Value>,
-  inputs: Record<string, Value>,
-  userFns: UserFnMap,
+  ctx: EvalContext,
 ): Promise<Value> {
-  const l = await evalExpr(expr.left, config, env, inputs, userFns);
-  const r = await evalExpr(expr.right, config, env, inputs, userFns);
+  const l = await evalExpr(expr.left, env, ctx);
+  const r = await evalExpr(expr.right, env, ctx);
   switch (expr.op) {
     case '+': {
       if (typeof l === 'string' && typeof r === 'string') return l + r;
@@ -290,10 +296,8 @@ async function evalBinary(
 
 async function evalCall(
   expr: CallExpr,
-  config: LangConfig,
   env: Map<string, Value>,
-  inputs: Record<string, Value>,
-  userFns: UserFnMap,
+  ctx: EvalContext,
 ): Promise<Value> {
   const name = expr.callee;
 
@@ -307,7 +311,7 @@ async function evalCall(
 
   // User-defined function? Save/overlay params in the shared env; body runs
   // against the same environment so outer-variable mutations are visible.
-  const userFn = userFns.get(name);
+  const userFn = ctx.userFns.get(name);
   if (userFn) {
     if (expr.args.length !== userFn.params.length) {
       throw new GenbyRuntimeError(
@@ -319,7 +323,7 @@ async function evalCall(
     // Eagerly evaluate caller args (user fns don't support laziness on params).
     const argValues: Value[] = [];
     for (const a of expr.args) {
-      argValues.push(await evalExpr(a, config, env, inputs, userFns));
+      argValues.push(await evalExpr(a, env, ctx));
     }
     const saved: Array<[string, Value | undefined, boolean]> = [];
     for (let i = 0; i < userFn.params.length; i++) {
@@ -329,7 +333,7 @@ async function evalCall(
       env.set(p.name, argValues[i]!);
     }
     try {
-      return await evalBlock(userFn.body, config, env, inputs, userFns);
+      return await evalBlock(userFn.body, env, ctx);
     } finally {
       for (const [pname, prev, had] of saved) {
         if (had) env.set(pname, prev as Value);
@@ -338,7 +342,7 @@ async function evalCall(
     }
   }
 
-  const spec = config.functions.get(name);
+  const spec = ctx.config.functions.get(name);
   if (!spec) {
     throw new GenbyRuntimeError(`Unknown function '${name}'`, expr.calleeSpan);
   }
@@ -353,10 +357,10 @@ async function evalCall(
           ? spec.args[spec.args.length - 1]
           : undefined;
     if (argSpec?.lazy) {
-      const thunk = async () => evalExpr(a, config, env, inputs, userFns);
+      const thunk = async () => evalExpr(a, env, ctx);
       argValues.push(thunk);
     } else {
-      argValues.push(await evalExpr(a, config, env, inputs, userFns));
+      argValues.push(await evalExpr(a, env, ctx));
     }
   }
 
@@ -375,19 +379,37 @@ function valueEquals(a: Value, b: Value): boolean {
   if (isEnumValue(a) && isEnumValue(b)) {
     return a.enumKey === b.enumKey && a.name === b.name;
   }
+  // For custom-typed values (arrays, objects, etc.) we use reference equality.
+  // Deep equality is intentionally not built in — users can wrap values or
+  // register coercion helpers if they need value-based comparison.
   return a === b;
 }
 
-function stringify(v: Value, span: SourceSpan): string {
+function stringify(
+  v: Value,
+  span: SourceSpan,
+  config: LangConfig,
+  declared: ResolvedType | undefined,
+): string {
+  if (v === undefined) {
+    throw new GenbyRuntimeError(
+      `Cannot interpolate a VOID value`,
+      span,
+      'type',
+    );
+  }
+  // Custom types first — their stringify hook wins over JS-type heuristics.
+  if (declared && declared.kind === 'CUSTOM') {
+    const def = config.types.get(declared.name);
+    if (def?.stringify) return def.stringify(v);
+    return String(v);
+  }
   if (typeof v === 'string') return v;
   if (typeof v === 'number') return String(v);
   if (typeof v === 'boolean') return v ? 'true' : 'false';
   if (isEnumValue(v)) return (v as EnumValue).name;
-  throw new GenbyRuntimeError(
-    `Cannot interpolate a VOID value`,
-    span,
-    'type',
-  );
+  // Unknown shape and no declared custom type — fall back to String().
+  return String(v);
 }
 
 function errMessage(err: unknown): string {

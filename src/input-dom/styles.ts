@@ -155,6 +155,7 @@ export const DEFAULT_CSS = `
 .genby-input__sighint-type[data-type="BUL"] { color: var(--genby-color-number, #0550ae); }
 .genby-input__sighint-type[data-type="ENUM"] { color: var(--genby-color-enum, #116329); }
 .genby-input__sighint-type[data-type="ANY"] { color: var(--genby-color-ext-var, #6639ba); }
+.genby-input__sighint-type[data-custom="true"] { color: var(--genby-color-custom, #a3562a); }
 .genby-input__sighint-return {
   color: var(--genby-color-ident, #1f2328);
   opacity: 0.75;

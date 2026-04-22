@@ -15,8 +15,48 @@ import {
 const DEFAULT_CONFIG = `// declare your language here.
 // scope: Genby, STR, NUM, BUL, ENUM, ANY, makeEnumValue.
 // return the configured Genby instance.
+//
+// to add a custom type, call g.addType('NAME', { describe?, stringify? })
+// and reference the name in arg/return types — see ARR / SPLIT / JOIN below.
 
 const g = new Genby();
+
+// --- custom type: ARR -------------------------------------------------
+
+g.addType('ARR', {
+    describe: 'an ordered list of values (JS array under the hood)',
+    stringify: (v) => JSON.stringify(v),
+});
+
+g.addFunction({
+    name: 'SPLIT',
+    describe: 'splits a string by a separator into an ARR',
+    args: [
+        { name: 's', type: STR },
+        { name: 'sep', type: STR, describe: 'separator' },
+    ],
+    returns: 'ARR',
+    handler: ([s, sep]) => String(s ?? '').split(String(sep ?? '')),
+});
+
+g.addFunction({
+    name: 'JOIN',
+    describe: 'joins an ARR back into a string',
+    args: [
+        { name: 'arr', type: 'ARR' },
+        { name: 'sep', type: STR, describe: 'separator' },
+    ],
+    returns: STR,
+    handler: ([arr, sep]) => (Array.isArray(arr) ? arr : []).join(String(sep ?? '')),
+});
+
+g.addFunction({
+    name: 'SIZE',
+    describe: 'length of an ARR',
+    args: [{ name: 'arr', type: 'ARR' }],
+    returns: NUM,
+    handler: ([arr]) => (Array.isArray(arr) ? arr.length : 0),
+});
 
 // --- type-coercion helpers (ANY in, specific type out) ----------------
 
@@ -117,7 +157,11 @@ func(a) = (
 
 FOR(3, (func(3) func(-2)))
 
-RETURN(x)`;
+// custom type: ARR flows through SPLIT / JOIN / SIZE
+items = SPLIT("alpha,beta,gamma", ",")
+joined = JOIN(items, " | ")
+
+RETURN("x={x} items={items} size={SIZE(items)} joined={joined}")`;
 
 // -----------------------------------------------------------------
 // dom refs

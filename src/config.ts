@@ -4,8 +4,10 @@ import type {
   EnumValueSpec,
   FunctionSpec,
   Type,
+  TypeDef,
   VariableSpec,
 } from './types.js';
+import { ANY, BUL, ENUM, NUM, STR } from './types.js';
 
 export interface EnumDef {
   key: string;
@@ -19,11 +21,19 @@ export interface LangConfig {
   functions: Map<string, FunctionSpec>;
   variables: Map<string, VariableSpec>;
   enums: Map<string, EnumDef>;
+  /** User-registered custom types (by name). Built-ins are not listed here. */
+  types: Map<string, TypeDef>;
   /** enumValueName -> enumKey. Used for identifier resolution and reserved-name checks. */
   enumValueIndex: Map<string, string>;
 }
 
 export const RETURN = 'RETURN';
+
+export const BUILTIN_TYPE_NAMES = new Set<string>([STR, NUM, BUL, ENUM, ANY]);
+
+export function isBuiltinType(name: string): boolean {
+  return BUILTIN_TYPE_NAMES.has(name);
+}
 
 export type IdentResolution =
   | { kind: 'local'; type: Type; enumKey?: string }
@@ -42,7 +52,13 @@ export function isReservedName(config: LangConfig, name: string): boolean {
   return false;
 }
 
+/** Human-readable rendering of an arg's type, including rest/optional decorations. */
 export function describeArg(arg: ArgSpec): string {
-  const base = arg.type === 'ENUM' ? `ENUM<${arg.enumKey ?? '?'}>` : arg.type;
+  const base = formatArgType(arg.type, arg.enumKey);
   return arg.rest ? `${base}...` : arg.optional ? `${base}?` : base;
+}
+
+function formatArgType(type: Type, enumKey?: string): string {
+  if (type === ENUM) return `ENUM<${enumKey ?? '?'}>`;
+  return type;
 }

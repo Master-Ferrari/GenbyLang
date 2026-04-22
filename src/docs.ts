@@ -5,6 +5,7 @@ import type {
   DirectiveSpec,
   FunctionSpec,
   Type,
+  TypeDef,
   VariableSpec,
 } from './types.js';
 
@@ -66,6 +67,15 @@ Named constants. In code you write the name directly; when interpolated into a s
 ${enums.map(renderEnum).join('\n')}`);
   }
 
+  const types = [...config.types.values()];
+  if (types.length > 0) {
+    sections.push(`## Types
+
+Custom types produced and consumed by registered functions. You never write their literals directly — values flow through variables, function arguments, and return types. Interpolation renders them via the type's \`stringify\` hook (or \`String(value)\` by default).
+
+${renderTypesTable(types)}`);
+  }
+
   return sections.join('\n\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
 }
 
@@ -83,7 +93,9 @@ A program is a list of assignments and calls that always ends with \`RETURN(...)
 
 ### Types
 
-\`STR\`, \`NUM\`, \`BUL\`, \`ENUM\`. There are no boolean literals — \`BUL\` only comes out of comparisons. A function may declare an argument as \`ANY\` to accept a value of any type (useful for coercion helpers).
+Built-in tags: \`STR\`, \`NUM\`, \`BUL\`, \`ENUM\`, \`ANY\`. There are no boolean literals — \`BUL\` only comes out of comparisons. An argument declared as \`ANY\` accepts a value of any type (useful for coercion helpers).
+
+On top of the built-ins, the library user can register custom types (listed below if any). Custom-typed values are opaque to the language: they flow through variables, function arguments and return types, participate in \`==\` / \`!=\` against values of the same type, and render via the type's \`stringify\` hook when interpolated. Arithmetic and ordering operators are only defined on \`NUM\`/\`STR\`.
 
 ### Operators
 
@@ -146,6 +158,18 @@ function renderVariablesTable(variables: VariableSpec[]): string {
     .join('\n');
   return `| Name | Type | Description |
 | --- | --- | --- |
+${rows}`;
+}
+
+function renderTypesTable(types: TypeDef[]): string {
+  const rows = types
+    .map(
+      (t) =>
+        `| \`${t.name}\` | ${escapeCell(t.describe ?? '—')} |`,
+    )
+    .join('\n');
+  return `| Name | Description |
+| --- | --- |
 ${rows}`;
 }
 

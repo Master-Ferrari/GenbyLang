@@ -4,7 +4,15 @@ export const BUL = 'BUL' as const;
 export const ENUM = 'ENUM' as const;
 export const ANY = 'ANY' as const;
 
-export type Type =
+/**
+ * A type tag. Built-in tags are `STR`, `NUM`, `BUL`, `ENUM`, `ANY`; any other
+ * string is treated as a user-registered type name (see `Genby.addType`).
+ * Built-in names cannot be redefined by the library user.
+ */
+export type Type = string;
+
+/** The 5 built-in type tags, exposed as a union for discrimination helpers. */
+export type BuiltinType =
   | typeof STR
   | typeof NUM
   | typeof BUL
@@ -13,7 +21,14 @@ export type Type =
 
 export type EnumValue = { readonly __enum: true; enumKey: string; name: string };
 
-export type Value = string | number | boolean | EnumValue | void;
+/**
+ * A runtime value. Built-in types are `string`, `number`, `boolean`, `EnumValue`;
+ * `void`/`undefined` represents VOID functions. Custom-typed values can be any
+ * JS value (arrays, plain objects, `null`, class instances, …) — the language
+ * treats them opaquely and only shuttles them through calls / assignments /
+ * interpolation. Hence the loose `unknown`.
+ */
+export type Value = unknown;
 
 export interface ArgSpec {
   name: string;
@@ -67,6 +82,19 @@ export interface EnumSpec {
   values: EnumValueSpec[];
 }
 
+/** User-registered type. Produced by `Genby.addType(name, options?)`. */
+export interface TypeDef {
+  name: string;
+  describe?: string;
+  /**
+   * Converts a runtime value of this type to a string for interpolation.
+   * Defaults to `String(value)` if omitted.
+   */
+  stringify?: (value: Value) => string;
+}
+
+export type TypeOptions = Omit<TypeDef, 'name'>;
+
 export type ErrorKind =
   | 'syntax'
   | 'type'
@@ -100,13 +128,18 @@ export function isEnumValue(v: unknown): v is EnumValue {
   );
 }
 
-export function valueType(v: Value): Type | 'VOID' {
-  if (v === undefined || v === null) return 'VOID';
+/**
+ * Narrow a runtime value to one of the built-in type tags. Returns `null` for
+ * anything that isn't a built-in (arrays, plain objects, `null`, …) — those are
+ * custom-typed and can't be classified by their JS shape alone.
+ */
+export function valueType(v: Value): BuiltinType | 'VOID' | null {
+  if (v === undefined) return 'VOID';
   if (typeof v === 'string') return STR;
   if (typeof v === 'number') return NUM;
   if (typeof v === 'boolean') return BUL;
   if (isEnumValue(v)) return ENUM;
-  return 'VOID';
+  return null;
 }
 
 /** True for the value part of HandlerArg (not a thunk). */

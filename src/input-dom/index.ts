@@ -1,6 +1,7 @@
 import { lex, type Token } from '../lexer.js';
 import { parse } from '../parser.js';
 import { check, type IdentCategory } from '../checker.js';
+import { isBuiltinType } from '../config.js';
 import type { LangMachine } from '../genby.js';
 import type { CheckResult, GenbyError } from '../types.js';
 import { highlightToHtml } from './highlight.js';
@@ -220,6 +221,9 @@ export function createInputDom(machine: LangMachine): GenbyInput {
     const ty = doc.createElement('span');
     ty.className = 'genby-input__sighint-type';
     ty.setAttribute('data-type', arg.type);
+    if (!isBuiltinType(arg.type)) {
+      ty.setAttribute('data-custom', 'true');
+    }
     ty.textContent =
       arg.type === 'ENUM' ? `ENUM<${arg.enumKey ?? '?'}>` : arg.type;
     wrap.appendChild(ty);

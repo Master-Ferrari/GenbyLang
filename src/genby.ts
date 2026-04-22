@@ -3,14 +3,18 @@ import { parse } from './parser.js';
 import { check } from './checker.js';
 import { runProgram, GenbyRuntimeError } from './interpreter.js';
 import type { EnumDef, LangConfig } from './config.js';
+import { BUILTIN_TYPE_NAMES, isBuiltinType } from './config.js';
 import { createInputDom, type GenbyInput } from './input-dom/index.js';
 import { generateMarkdownDocs, type DocsOptions } from './docs.js';
 import type {
+  ArgSpec,
   CheckResult,
   DirectiveSpec,
   EnumValueSpec,
   FunctionSpec,
   GenbyError,
+  TypeDef,
+  TypeOptions,
   Value,
   VariableSpec,
 } from './types.js';
@@ -19,6 +23,8 @@ export interface AddEnumOptions {
   describe?: string;
 }
 
+export type AddTypeOptions = TypeOptions;
+
 export type EnumValueInput = string | EnumValueSpec;
 
 export class Genby {
@@ -26,6 +32,7 @@ export class Genby {
   private readonly functions = new Map<string, FunctionSpec>();
   private readonly variables = new Map<string, VariableSpec>();
   private readonly enums = new Map<string, EnumDef>();
+  private readonly types = new Map<string, TypeDef>();
   private readonly enumValueIndex = new Map<string, string>();
 
   addDirective(spec: DirectiveSpec): this {
@@ -88,15 +95,91 @@ export class Genby {
     return this;
   }
 
+  /**
+   * Register a custom type. The name becomes usable in `ArgSpec.type`,
+   * `VariableSpec.type`, and `FunctionSpec.returns`. Built-in names
+   * (`STR`, `NUM`, `BUL`, `ENUM`, `ANY`, `VOID`) are reserved.
+   */
+  addType(name: string, options: AddTypeOptions = {}): this {
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+      throw new Error(`Invalid type name '${name}'`);
+    }
+    if (name === 'VOID') {
+      throw new Error(`'VOID' is reserved as a return-only type`);
+    }
+    if (isBuiltinType(name)) {
+      throw new Error(`Type '${name}' is a built-in and cannot be redefined`);
+    }
+    if (this.types.has(name)) {
+      throw new Error(`Type '${name}' is already registered`);
+    }
+    const def: TypeDef = { name };
+    if (options.describe !== undefined) def.describe = options.describe;
+    if (options.stringify !== undefined) def.stringify = options.stringify;
+    this.types.set(name, def);
+    return this;
+  }
+
   build(): LangMachine {
+    this.validateAllTypeReferences();
     const config: LangConfig = {
       directives: new Map(this.directives),
       functions: new Map(this.functions),
       variables: new Map(this.variables),
       enums: new Map(this.enums),
+      types: new Map(this.types),
       enumValueIndex: new Map(this.enumValueIndex),
     };
     return new LangMachine(config);
+  }
+
+  private validateAllTypeReferences(): void {
+    const check = (
+      type: string,
+      context: string,
+    ): void => {
+      if (type === 'VOID') return;
+      if (isBuiltinType(type)) return;
+      if (this.types.has(type)) return;
+      throw new Error(
+        `${context} references unknown type '${type}'. ` +
+          `Register it first via genby.addType('${type}', ...) or use one of: ` +
+          `${[...BUILTIN_TYPE_NAMES].join(', ')}.`,
+      );
+    };
+    const checkArg = (arg: ArgSpec, context: string): void => {
+      check(arg.type, `${context} arg '${arg.name}'`);
+      if (arg.type === 'ENUM') {
+        if (!arg.enumKey) {
+          throw new Error(`${context} arg '${arg.name}' is ENUM but no enumKey was provided`);
+        }
+        if (!this.enums.has(arg.enumKey)) {
+          throw new Error(
+            `${context} arg '${arg.name}' references unknown enum '${arg.enumKey}'`,
+          );
+        }
+      }
+    };
+    for (const fn of this.functions.values()) {
+      for (const a of fn.args) checkArg(a, `Function '${fn.name}'`);
+      check(fn.returns, `Function '${fn.name}' return`);
+      if (fn.returns === 'ENUM' && fn.returnsEnumKey && !this.enums.has(fn.returnsEnumKey)) {
+        throw new Error(
+          `Function '${fn.name}' returns ENUM<${fn.returnsEnumKey}> but that enum is not registered`,
+        );
+      }
+    }
+    for (const dir of this.directives.values()) {
+      for (const a of dir.args) checkArg(a, `Directive '@${dir.name}'`);
+    }
+    for (const v of this.variables.values()) {
+      check(v.type, `Variable '${v.name}'`);
+      if (v.type === 'ENUM' && v.enumKey && !this.enums.has(v.enumKey)) {
+        throw new Error(
+          `Variable '${v.name}' references unknown enum '${v.enumKey}'`,
+        );
+      }
+    }
   }
 
   private assertNameFree(name: string, kind: string): void {
@@ -145,7 +228,9 @@ export class LangMachine {
       );
     }
     try {
-      return await runProgram(ast, this.config, inputs);
+      return await runProgram(ast, this.config, inputs, {
+        interpTypes: checkResult.interpTypes,
+      });
     } catch (err) {
       if (err instanceof GenbyRuntimeError) {
         throw Object.assign(new Error(err.message), {
