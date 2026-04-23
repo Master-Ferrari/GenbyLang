@@ -21,6 +21,8 @@ const VARS_CONFIG = `// the smallest possible language — no functions at all.
 // genby still gives you: variables, literals, arithmetic, comparisons
 // and rich string interpolation ( { ... } inside string literals ).
 
+import { Genby } from 'genby';
+
 const g = new Genby();
 return g;
 `;
@@ -54,6 +56,8 @@ a * b   = {area}
 const CUSTOM_CONFIG = `// declare your own functions via g.addFunction(...).
 // each function picks argument types (STR/NUM/BUL/ANY/...), a return
 // type, and a JS handler. the arg array becomes the call signature.
+
+import { Genby, NUM } from 'genby';
 
 const g = new Genby();
 
@@ -116,6 +120,8 @@ const ENUMS_CONFIG = `// g.addEnum(key, values) registers a set of symbolic name
 // an enum. an enum-returning function must also set returnsEnumKey so the
 // type checker knows which enum it produces.
 
+import { Genby, STR, ENUM, makeEnumValue } from 'genby';
+
 const g = new Genby();
 
 g.addEnum('Color', ['RED', 'GREEN', 'BLUE'], {
@@ -176,6 +182,8 @@ BLUE  = {blue_hex}  ( mood : {mood_blue} )")`;
 
 const STRINGS_CONFIG = `// a handful of string helpers. they all share the same pattern:
 // STR-typed args, STR return, plain JS in the handler.
+
+import { Genby, STR, NUM } from 'genby';
 
 const g = new Genby();
 
@@ -256,6 +264,8 @@ const ARRAYS_CONFIG = `// g.addPreset(name) registers one ready-made function un
 //   loops:   WHILE
 //   cast:    NUM  (coerce values between types)
 
+import { Genby } from 'genby';
+
 const g = new Genby();
 
 // arrays
@@ -305,6 +315,8 @@ words reversed: {reversed}")`;
 const RECURSION_CONFIG = `// user functions are written directly in genby — see the program
 // on the right. each preset adds exactly one same-named function, so we
 // pull just IF (for branching) and NUM (to pin local types).
+
+import { Genby } from 'genby';
 
 const g = new Genby();
 
@@ -356,6 +368,8 @@ const ASYNC_CONFIG = `// directives are compile-time knobs written as @NAME(...)
 //   FETCH_JSON    — async HTTP GET, returns field or full JSON
 //   SHA256        — async SubtleCrypto digest
 //   SHORT         — tiny helper for pretty-printing long strings
+
+import { Genby, STR, NUM } from 'genby';
 
 const g = new Genby();
 

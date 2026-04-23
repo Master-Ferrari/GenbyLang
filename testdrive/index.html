@@ -341,12 +341,12 @@
         }
 
         .code-input,
-        .genby-host .genby-input__textarea {
+        .genby-host .genby-input__stack {
             resize: none;
         }
 
         .code-input,
-        .genby-host .genby-input__textarea,
+        .genby-host .genby-input__stack,
         .md-render,
         .output-pre {
             scrollbar-width: thin;
@@ -354,7 +354,7 @@
         }
 
         .code-input::-webkit-scrollbar,
-        .genby-host .genby-input__textarea::-webkit-scrollbar,
+        .genby-host .genby-input__stack::-webkit-scrollbar,
         .md-render::-webkit-scrollbar,
         .output-pre::-webkit-scrollbar {
             width: 10px;
@@ -362,7 +362,7 @@
         }
 
         .code-input::-webkit-scrollbar-track,
-        .genby-host .genby-input__textarea::-webkit-scrollbar-track,
+        .genby-host .genby-input__stack::-webkit-scrollbar-track,
         .md-render::-webkit-scrollbar-track,
         .output-pre::-webkit-scrollbar-track {
             background: var(--scroll-track);
@@ -370,7 +370,7 @@
         }
 
         .code-input::-webkit-scrollbar-thumb,
-        .genby-host .genby-input__textarea::-webkit-scrollbar-thumb,
+        .genby-host .genby-input__stack::-webkit-scrollbar-thumb,
         .md-render::-webkit-scrollbar-thumb,
         .output-pre::-webkit-scrollbar-thumb {
             background: var(--scroll-thumb);
@@ -379,29 +379,28 @@
         }
 
         .code-input::-webkit-scrollbar-thumb:hover,
-        .genby-host .genby-input__textarea::-webkit-scrollbar-thumb:hover,
+        .genby-host .genby-input__stack::-webkit-scrollbar-thumb:hover,
         .md-render::-webkit-scrollbar-thumb:hover,
         .output-pre::-webkit-scrollbar-thumb:hover {
             background: var(--scroll-thumb-hover);
         }
 
         .code-input::-webkit-scrollbar-corner,
-        .genby-host .genby-input__textarea::-webkit-scrollbar-corner,
+        .genby-host .genby-input__stack::-webkit-scrollbar-corner,
         .md-render::-webkit-scrollbar-corner,
         .output-pre::-webkit-scrollbar-corner {
             background: var(--scroll-track);
         }
 
         .code-input::-webkit-scrollbar-button,
-        .genby-host .genby-input__textarea::-webkit-scrollbar-button {
+        .genby-host .genby-input__stack::-webkit-scrollbar-button {
             display: none;
             width: 0;
             height: 0;
             background: transparent;
         }
 
-        .code-input::-webkit-resizer,
-        .genby-host .genby-input__textarea::-webkit-resizer {
+        .code-input::-webkit-resizer {
             display: none;
         }
 
@@ -950,7 +949,7 @@
             border-radius: 0;
         }
 
-        .genby-input__textarea {
+        .genby-input__stack {
             height: 230px;
         }
 
@@ -1099,7 +1098,7 @@
                 <div class="genby-host" id="genbyHost">
                     <div class="md-placeholder">build the language first</div>
                 </div>
-                <div class="resizeHandle" data-resize-target="#genbyHost .genby-input__textarea" role="separator"
+                <div class="resizeHandle" data-resize-target="#genbyHost .genby-input__stack" role="separator"
                     aria-orientation="horizontal" title="Drag to resize"></div>
             </details>
             <div class="btn-row">

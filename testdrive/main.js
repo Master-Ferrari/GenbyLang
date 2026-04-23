@@ -285,8 +285,18 @@ let currentProgram = EXAMPLES[0]?.program ?? '';
 // actions
 // -----------------------------------------------------------------
 
+// strip top-level `import ... from '...'` lines so the example can read like
+// real project code (with the genby import at the top), while still running
+// inside `new Function` where Genby, STR, NUM, ... are injected as arguments.
+function stripImports(src) {
+    return src.replace(
+        /^[\t ]*import\s[\s\S]*?from\s+['"][^'"]+['"]\s*;?[\t ]*\r?\n?/gm,
+        '',
+    );
+}
+
 function buildMachine() {
-    const userCode = configInput.value;
+    const userCode = stripImports(configInput.value);
     let result;
     try {
         const fn = new Function(

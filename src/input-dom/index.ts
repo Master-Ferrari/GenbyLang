@@ -38,8 +38,14 @@ export function createInputDom(machine: LangMachine): GenbyInput {
 
   const root = doc.createElement('div');
   root.className = 'genby-input';
+  // `stack` is the single scrolling viewport.
   const stack = doc.createElement('div');
   stack.className = 'genby-input__stack';
+  // `content` is the scrollable content box. Both the highlight <pre> and the
+  // textarea are sized against the same containing block, which guarantees
+  // identical wrapping widths (no scrollbar-gutter ambiguity).
+  const content = doc.createElement('div');
+  content.className = 'genby-input__content';
   const highlight = doc.createElement('pre');
   highlight.className = 'genby-input__highlight';
   highlight.setAttribute('aria-hidden', 'true');
@@ -61,8 +67,9 @@ export function createInputDom(machine: LangMachine): GenbyInput {
   errHint.className = 'genby-input__errhint';
   errHint.setAttribute('data-open', 'false');
 
-  stack.appendChild(highlight);
-  stack.appendChild(textarea);
+  content.appendChild(highlight);
+  content.appendChild(textarea);
+  stack.appendChild(content);
   stack.appendChild(sigHint);
   stack.appendChild(popup);
   stack.appendChild(errHint);
@@ -83,6 +90,7 @@ export function createInputDom(machine: LangMachine): GenbyInput {
   let popupOpen = false;
   let sigHintOpen = false;
   let errHintOpen = false;
+  let resizeObserver: ResizeObserver | null = null;
 
   function emptyState(): State {
     return {
@@ -113,9 +121,19 @@ export function createInputDom(machine: LangMachine): GenbyInput {
     });
   }
 
-  function syncScroll(): void {
-    highlight.scrollTop = textarea.scrollTop;
-    highlight.scrollLeft = textarea.scrollLeft;
+  function resizeTextarea(): void {
+    // With the stack acting as the single scrolling viewport, the textarea
+    // must grow to fit its content (overflow: hidden on the textarea). Brief
+    // "auto" collapse → measured scrollHeight is the canonical trick. We run
+    // it twice: the first pass may cause the stack's vertical scrollbar to
+    // appear/disappear, which narrows content width and re-wraps lines —
+    // settling requires a second measurement.
+    textarea.style.height = 'auto';
+    const first = Math.max(textarea.scrollHeight, stack.clientHeight);
+    textarea.style.height = `${first}px`;
+    textarea.style.height = 'auto';
+    const second = Math.max(textarea.scrollHeight, stack.clientHeight);
+    textarea.style.height = `${second}px`;
   }
 
   function updatePopup(): void {
@@ -442,7 +460,7 @@ export function createInputDom(machine: LangMachine): GenbyInput {
 
   function onInput(): void {
     render();
-    syncScroll();
+    resizeTextarea();
     hideErrHint();
     for (const cb of listeners) cb(textarea.value);
     updatePopup();
@@ -517,9 +535,11 @@ export function createInputDom(machine: LangMachine): GenbyInput {
     msg.textContent = ' ' + err.message;
     errHint.appendChild(msg);
 
+    // `rect` is in viewport coords; convert to stack content-space by adding
+    // stack's own scrollTop (since stack is the scrolling container now).
     const stackRect = stack.getBoundingClientRect();
-    const top = rect.bottom - stackRect.top + 6;
-    const left = rect.left - stackRect.left;
+    const top = rect.bottom - stackRect.top + stack.scrollTop + 6;
+    const left = rect.left - stackRect.left + stack.scrollLeft;
     errHint.style.top = `${top}px`;
     errHint.style.left = `${left}px`;
     errHint.setAttribute('data-open', 'true');
@@ -547,12 +567,14 @@ export function createInputDom(machine: LangMachine): GenbyInput {
   }
 
   function onScrollAll(): void {
-    syncScroll();
+    // Scrolling the viewport dismisses the hover error hint — its anchor
+    // rect is stale the moment layout moves. Popups reposition naturally
+    // on the next caret move.
     hideErrHint();
   }
 
   textarea.addEventListener('input', onInput);
-  textarea.addEventListener('scroll', onScrollAll);
+  stack.addEventListener('scroll', onScrollAll);
   textarea.addEventListener('keydown', onKeydown);
   textarea.addEventListener('keyup', onCaretMove);
   textarea.addEventListener('click', onCaretMove);
@@ -568,8 +590,16 @@ export function createInputDom(machine: LangMachine): GenbyInput {
     }, 100);
   });
 
-  // Initial render.
+  // Initial render. resizeTextarea must run after the element is attached to
+  // the DOM to read a valid scrollHeight, so we also re-run it via microtask.
   render();
+  Promise.resolve().then(() => resizeTextarea());
+  if (typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => {
+      resizeTextarea();
+    });
+    resizeObserver.observe(stack);
+  }
 
   return {
     element: root,
@@ -591,13 +621,14 @@ export function createInputDom(machine: LangMachine): GenbyInput {
       hideSignatureHint();
       hideErrHint();
       textarea.removeEventListener('input', onInput);
-      textarea.removeEventListener('scroll', onScrollAll);
+      stack.removeEventListener('scroll', onScrollAll);
       textarea.removeEventListener('keydown', onKeydown);
       textarea.removeEventListener('keyup', onCaretMove);
       textarea.removeEventListener('click', onCaretMove);
       textarea.removeEventListener('focus', onCaretMove);
       textarea.removeEventListener('mousemove', onMouseMove);
       textarea.removeEventListener('mouseleave', hideErrHint);
+      resizeObserver?.disconnect();
       root.remove();
     },
   };

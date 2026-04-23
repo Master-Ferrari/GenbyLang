@@ -16,6 +16,15 @@ export const DEFAULT_CSS = `
 .genby-input__stack {
   position: relative;
   min-height: var(--genby-min-height, 6em);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+.genby-input__content {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
 }
 .genby-input__highlight,
 .genby-input__textarea {
@@ -31,11 +40,12 @@ export const DEFAULT_CSS = `
 }
 .genby-input__highlight {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
   pointer-events: none;
   color: inherit;
   background: transparent;
-  overflow: hidden;
   z-index: 1;
 }
 .genby-input__highlight > code {
@@ -56,16 +66,17 @@ export const DEFAULT_CSS = `
 }
 .genby-input__textarea {
   position: relative;
+  display: block;
   width: 100%;
   min-height: var(--genby-min-height, 6em);
   border: none;
   outline: none;
-  resize: vertical;
+  resize: none;
   color: transparent;
   caret-color: var(--genby-caret, #1f2328);
   background: transparent;
   z-index: 2;
-  overflow: auto;
+  overflow: hidden;
 }
 .genby-input__textarea::selection {
   background: var(--genby-selection, rgba(51, 136, 255, 0.3));
@@ -213,13 +224,18 @@ export const DEFAULT_CSS = `
 }
 `;
 
-let injected = false;
-
 export function ensureStylesInjected(doc: Document): void {
-  if (injected) return;
+  const existing = doc.querySelector<HTMLStyleElement>('style[data-genby="styles"]');
+  if (existing) {
+    // Keep styles hot-reload-friendly: if DEFAULT_CSS changed, refresh the same
+    // style tag instead of skipping due to a stale "already injected" flag.
+    if (existing.textContent !== DEFAULT_CSS) {
+      existing.textContent = DEFAULT_CSS;
+    }
+    return;
+  }
   const style = doc.createElement('style');
   style.setAttribute('data-genby', 'styles');
   style.textContent = DEFAULT_CSS;
   doc.head.appendChild(style);
-  injected = true;
 }

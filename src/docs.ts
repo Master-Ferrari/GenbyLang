@@ -16,7 +16,7 @@ export interface DocsOptions {
   intro?: string;
 }
 
-const DEFAULT_INTRO = `A small embeddable language for stitching text together from variables, conditions, and calls. What follows is everything you need to know — first the syntax itself, then what this particular build gives you on top.`;
+const DEFAULT_INTRO = `This build of the language ships with a specific set of functions, variables, and other hooks — that's what's documented below. The language itself is just glue: a tiny scripting layer for stitching their outputs together. A short syntax reference is at the very end for when you need it.`;
 
 export function generateMarkdownDocs(
   machine: LangMachine,
@@ -29,22 +29,12 @@ export function generateMarkdownDocs(
   const sections: string[] = [];
 
   sections.push(`# ${title}\n\n${intro}`);
-  sections.push(renderBasicSyntax());
-
-  const directives = [...config.directives.values()];
-  if (directives.length > 0) {
-    sections.push(`## Directives
-
-Written at the very top of the program and executed once, on load. Arguments must be constants or enum values — nothing that depends on runtime state.
-
-${directives.map(renderDirective).join('\n')}`);
-  }
 
   const functions = [...config.functions.values()];
   if (functions.length > 0) {
     sections.push(`## Functions
 
-Every function is external and asynchronous — the engine awaits results for you. Void functions are used as standalone statements; their result cannot be assigned.
+The building blocks of every program. Each function is external and asynchronous — the engine awaits the result for you. Call with \`NAME(arg1, arg2, ...)\`; assign the result to a variable or drop it into an expression. Void functions are written as standalone statements and don't produce a value.
 
 ${functions.map(renderFunction).join('\n')}`);
   }
@@ -53,7 +43,7 @@ ${functions.map(renderFunction).join('\n')}`);
   if (variables.length > 0) {
     sections.push(`## Variables
 
-Supplied from the outside when the program runs — use them like any other identifier.
+Values supplied from the outside when the program runs. Use them like any other identifier.
 
 ${renderVariablesTable(variables)}`);
   }
@@ -62,7 +52,7 @@ ${renderVariablesTable(variables)}`);
   if (enums.length > 0) {
     sections.push(`## Enums
 
-Named constants. In code you write the name directly; when interpolated into a string it becomes the text of that name.
+Named constants. Write the name directly in code; when interpolated into a string it becomes the text of that name.
 
 ${enums.map(renderEnum).join('\n')}`);
   }
@@ -71,58 +61,45 @@ ${enums.map(renderEnum).join('\n')}`);
   if (types.length > 0) {
     sections.push(`## Types
 
-Custom types produced and consumed by registered functions. You never write their literals directly — values flow through variables, function arguments, and return types. Interpolation renders them via the type's \`stringify\` hook (or \`String(value)\` by default).
+Custom types produced and consumed by the functions above. You never write their literals directly — values flow through variables, arguments, and return types, and render via the type's \`stringify\` hook when interpolated.
 
 ${renderTypesTable(types)}`);
   }
+
+  const directives = [...config.directives.values()];
+  if (directives.length > 0) {
+    sections.push(`## Directives
+
+One-off configuration written at the very top of the program and executed once on load. Arguments must be constants or enum values — nothing that depends on runtime state.
+
+${directives.map(renderDirective).join('\n')}`);
+  }
+
+  sections.push(renderBasicSyntax());
 
   return sections.join('\n\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
 }
 
 function renderBasicSyntax(): string {
-  return `## Basic syntax
+  return `## Syntax reference
 
-A program is a list of assignments and calls that always ends with \`RETURN(...)\`. Above it sit directives, if any — they run once when the program loads.
+A compact cheat sheet for the glue around the functions above. A program is a list of assignments and calls ending with \`RETURN(expression)\`; optional directives sit at the very top.
 
-### Literals and strings
+**Literals.** Double-quoted strings (\`"hello"\`, multi-line OK), numbers (\`42\`, \`3.14\`, \`-1\`). Escapes: \`\\"\`, \`\\\\\`, \`\\{\`, \`\\n\`, \`\\t\`. There are no boolean literals — \`BUL\` values only come out of comparisons.
 
-- Strings live inside double quotes: \`"hello"\`. Line breaks inside the quotes are fine.
-- Interpolation: \`"hello {name}"\` — whatever sits in \`{}\` is evaluated and spliced in. Numbers and enum values render as text on their own.
-- Escapes: \`\\"\`, \`\\\\\`, \`\\{\`, \`\\n\`, \`\\t\`.
-- Numbers: \`42\`, \`3.14\`, \`-1\`.
+**Interpolation.** \`"hello {name}"\` — anything inside \`{}\` is evaluated and spliced in. Custom-typed values render via their \`stringify\` hook.
 
-### Types
+**Built-in type tags.** \`STR\`, \`NUM\`, \`BUL\`, \`ENUM\`, \`ANY\`. \`ANY\` in an argument slot accepts a value of any type.
 
-Built-in tags: \`STR\`, \`NUM\`, \`BUL\`, \`ENUM\`, \`ANY\`. There are no boolean literals — \`BUL\` only comes out of comparisons. An argument declared as \`ANY\` accepts a value of any type (useful for coercion helpers).
+**Operators.** \`+\` (concat for \`STR\`, addition for \`NUM\`); \`-\`, \`*\`, \`/\` on \`NUM\`; \`==\`, \`!=\` between values of the same type; \`<\`, \`>\`, \`<=\`, \`>=\` on \`NUM\`. Division by zero is a runtime error.
 
-On top of the built-ins, the library user can register custom types (listed below if any). Custom-typed values are opaque to the language: they flow through variables, function arguments and return types, participate in \`==\` / \`!=\` against values of the same type, and render via the type's \`stringify\` hook when interpolated. Arithmetic and ordering operators are only defined on \`NUM\`/\`STR\`.
+**Assignment.** \`name = expression\`. Reassign freely, but the type is fixed by the first assignment. Reserved names (functions, directives, external variables, enum values) cannot be assigned to.
 
-### Operators
+**Calls.** \`FN(arg1, arg2, ...)\`. Always implicitly asynchronous — no \`await\` needed. Void functions are standalone statements and produce no value.
 
-| Operator | What it does |
-| --- | --- |
-| \`+\` | concatenation for \`STR + STR\`, addition for \`NUM + NUM\` |
-| \`-\`, \`*\`, \`/\` | arithmetic over \`NUM\` |
-| \`==\`, \`!=\` | equality between values of the same type |
-| \`<\`, \`>\`, \`<=\`, \`>=\` | comparison of numbers |
+**Comments.** \`// to the end of the line\`. No block comment form.
 
-Division by zero is a runtime error.
-
-### Variables and assignment
-
-\`name = expression\`. Reassign as often as you like, but don't change the type — it is fixed by the first assignment. Assigning to a reserved name (a function, directive, external variable, or enum value) is an error.
-
-### Comments
-
-\`// to the end of the line\`. There is no block comment form.
-
-### Calls
-
-\`FN(arg1, arg2, ...)\`. Every call is implicitly asynchronous — no \`await\` needed, the engine waits for you. The result can be assigned to a variable or used inside an expression. Void functions are written as standalone statements.
-
-### Termination
-
-\`RETURN(expression)\` — required, exactly once, as the last line. The returned value can be of any type.
+**Termination.** \`RETURN(expression)\` — required, exactly once, as the last line. Any type is allowed.
 `;
 }
 
