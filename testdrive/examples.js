@@ -3,11 +3,12 @@
 // to most advanced. each entry is a pair of (config, program):
 //   1. variables and string interpolation (empty language)
 //   2. your first custom functions with addFunction
-//   3. enums: registering, using as args, returning from handlers
-//   4. string helpers and composition
-//   5. arrays and loops from presets
-//   6. user-defined functions and recursion inside genby
-//   7. directives + interesting async functions (fetch + SubtleCrypto)
+//   3. host-provided custom variables
+//   4. enums: registering, using as args, returning from handlers
+//   5. string helpers and composition
+//   6. arrays and loops from presets
+//   7. user-defined functions and recursion inside genby
+//   8. directives + interesting async functions (fetch + SubtleCrypto)
 //
 // each example only introduces features on top of the previous one,
 // so reading them in order acts as a hands-on walkthrough.
@@ -17,7 +18,7 @@
 // 1. variables + string interpolation
 // =================================================================
 
-const VARS_CONFIG = `// the smallest possible language — no functions at all.
+const VARS_CONFIG = `// the smallest possible config — no functions at all.
 // genby still gives you: variables, literals, arithmetic, comparisons
 // and rich string interpolation ( { ... } inside string literals ).
 
@@ -57,20 +58,10 @@ const CUSTOM_CONFIG = `// declare your own functions via machine.addFunction(...
 // each function picks argument types (STR/NUM/BUL/ANY/...), a return
 // type, and a JS handler. handlers receive Arg<T> handles and decide
 // when to evaluate each argument via await arg.calc().
-//
-// this example also defines an external variable NOW_MS (system time).
-// in this testdrive we patch machine.execute(...) to inject NOW_MS
-// automatically on every run.
 
 import { Genby, NUM } from 'genby';
 
 const machine = new Genby();
-
-machine.addVariable({
-    name: 'NOW_MS',
-    type: NUM,
-    describe: 'system timestamp in milliseconds (injected by the host)',
-});
 
 machine.addFunction({
     name: 'ADD',
@@ -133,28 +124,79 @@ return built;
 `;
 
 const CUSTOM_PROGRAM = `// everything is a function call — calls nest freely: SQRT(ADD(...)) etc.
-// NOW_MS is provided by the host at run-time.
 area  = MUL(8, 9)
 cube  = POW(3, 3)
 hypot = SQRT(ADD(POW(3, 2), POW(4, 2)))
 total = ADD(area, cube)
-now   = NOW_MS
-// DRIFT calls calc() twice.
-// - external NOW_MS is stable for the whole run -> usually 0
-// - NOW() is re-executed twice -> usually > 0
-stable = DRIFT(NOW_MS + 1)
-live   = DRIFT(NOW())
+drift  = DRIFT(NOW())
 
 RETURN("area  = {area}
 cube  = {cube}
 hypot = {hypot}
 total = {total}
-now   = {now}
+drift(recomputed NOW) = {drift}")`;
+
+// =================================================================
+// 3. custom variables — host-provided values via addVariable
+// =================================================================
+
+const HOST_VARS_CONFIG = `// addVariable declares externally provided values.
+// the program can read them like ordinary locals, but the host must
+// inject them through execute(program, inputs).
+
+import { Genby, NUM } from 'genby';
+
+const machine = new Genby();
+
+machine.addVariable({
+    name: 'NOW_MS',
+    type: NUM,
+    describe: 'system timestamp in milliseconds (injected by the host)',
+});
+
+machine.addFunction({
+    name: 'DRIFT',
+    describe: 'evaluates one argument twice and returns second - first',
+    args: [{ name: 'value', type: NUM }],
+    returns: NUM,
+    handler: async ([value]) => {
+        const first = Number(await value.calc());
+        const second = Number(await value.calc());
+        return second - first;
+    },
+});
+
+machine.addFunction({
+    name: 'NOW',
+    describe: 'current system timestamp (Date.now)',
+    args: [],
+    returns: NUM,
+    handler: async () => Date.now(),
+});
+
+const built = machine.build();
+const originalExecute = built.execute.bind(built);
+built.execute = (program, inputs = {}) =>
+    originalExecute(program, { NOW_MS: Date.now(), ...inputs });
+
+return built;
+`;
+
+const HOST_VARS_PROGRAM = `// NOW_MS is injected once by the host, so its value is stable.
+now = NOW_MS
+
+// DRIFT calls calc() twice:
+// - NOW_MS stays fixed for this run -> usually 0
+// - NOW() runs twice -> usually > 0
+stable = DRIFT(NOW_MS + 1)
+live   = DRIFT(NOW())
+
+RETURN("now   = {now}
 drift(stable source) = {stable}
 drift(recomputed)    = {live}")`;
 
 // =================================================================
-// 3. enums — named value sets you can pass to handlers
+// 4. enums — named value sets you can pass to handlers
 // =================================================================
 
 const ENUMS_CONFIG = `// machine.addEnum(key, values) registers a set of symbolic names. those
@@ -226,7 +268,7 @@ GREEN = {green_hex}  ( mood : {MOOD_OF(GREEN)} )
 BLUE  = {blue_hex}  ( mood : {mood_blue} )")`;
 
 // =================================================================
-// 4. strings — composing your own string helpers
+// 5. strings — composing your own string helpers
 // =================================================================
 
 const STRINGS_CONFIG = `// a handful of string helpers. they all share the same pattern:
@@ -293,7 +335,7 @@ banner = UPPER(name)
 line   = REPEAT("-", LEN(banner) + 8)
 
 // REPLACE is a pure STR -> STR transformer; chain it with interpolation.
-template = "hello, NAME! ready to genby?"
+template = "hello, NAME! get out of here!"
 greet    = REPLACE(template, "NAME", banner)
 
 RETURN("{line}
@@ -302,7 +344,7 @@ RETURN("{line}
 length = {LEN(greet)}  ·  lower = {LOWER(banner)}")`;
 
 // =================================================================
-// 5. arrays & loops — using bundled presets
+// 6. arrays & loops — using bundled presets
 // =================================================================
 
 const ARRAYS_CONFIG = `// machine.addPreset(name) registers one ready-made function under the
@@ -358,7 +400,7 @@ RETURN("squares (size = {SIZE(nums)}):
 words reversed: {reversed}")`;
 
 // =================================================================
-// 6. user-defined functions & recursion inside genby
+// 7. user-defined functions & recursion inside genby
 // =================================================================
 
 const RECURSION_CONFIG = `// user functions are written directly in genby — see the program
@@ -405,7 +447,7 @@ fib(10)   = {fib(10)}
 1+2+...+10 = {sumto(10)}")`;
 
 // =================================================================
-// 7. directives + interesting async functions (fetch + SHA-256)
+// 8. directives + interesting async functions (fetch + SHA-256)
 // =================================================================
 
 const ASYNC_CONFIG = `// directives are compile-time knobs written as @NAME(...) at the very
@@ -516,37 +558,43 @@ export const EXAMPLES = [
     },
     {
         id: 'custom',
-        label: '2 · your first custom functions (addFunction)',
+        label: '2 · your first custom functions',
         config: CUSTOM_CONFIG,
         program: CUSTOM_PROGRAM,
     },
     {
+        id: 'host-vars',
+        label: '3 · custom variables from host',
+        config: HOST_VARS_CONFIG,
+        program: HOST_VARS_PROGRAM,
+    },
+    {
         id: 'enums',
-        label: '3 · enums — named values as function args',
+        label: '4 · enums — named values as function args',
         config: ENUMS_CONFIG,
         program: ENUMS_PROGRAM,
     },
     {
         id: 'strings',
-        label: '4 · working with strings',
+        label: '5 · working with strings',
         config: STRINGS_CONFIG,
         program: STRINGS_PROGRAM,
     },
     {
         id: 'arrays',
-        label: '5 · arrays & loops from presets',
+        label: '6 · arrays & loops from presets',
         config: ARRAYS_CONFIG,
         program: ARRAYS_PROGRAM,
     },
     {
         id: 'recursion',
-        label: '6 · user functions & recursion inside genby',
+        label: '7 · user functions & recursion inside genby',
         config: RECURSION_CONFIG,
         program: RECURSION_PROGRAM,
     },
     {
         id: 'async',
-        label: '7 · directives & async functions (fetch + sha-256)',
+        label: '8 · directives & async functions',
         config: ASYNC_CONFIG,
         program: ASYNC_PROGRAM,
     },

@@ -31,7 +31,7 @@ const runBtn = document.getElementById('runBtn');
 const runBadge = document.getElementById('runBadge');
 const runMsg = document.getElementById('runMsg');
 const runOutput = document.getElementById('runOutput');
-const runRight = document.getElementById('runRight');
+// const runRight = document.getElementById('runRight');
 
 const installBtn = document.getElementById('installBtn');
 const installLabel = document.getElementById('installLabel');
@@ -339,7 +339,7 @@ function buildMachine() {
     setBadge(runBadge, 'none', 'idle');
     runOutput.textContent = 'no output yet';
     runOutput.classList.add('empty');
-    runRight.textContent = '—';
+    // runRight.textContent = '—';
     setMsg(runMsg, '');
 }
 
@@ -409,7 +409,7 @@ async function runProgram() {
     setMsg(runMsg, '');
     runOutput.textContent = '';
     runOutput.classList.remove('empty');
-    runRight.textContent = 'running';
+    // runRight.textContent = 'running';
 
     const t0 = performance.now();
     try {
@@ -417,11 +417,11 @@ async function runProgram() {
         const dt = (performance.now() - t0).toFixed(1);
         setBadge(runBadge, 'ok', `ok · ${dt}ms`);
         runOutput.textContent = formatResult(result);
-        runRight.textContent = `${dt}ms`;
+        // runRight.textContent = `${dt}ms`;
     } catch (err) {
         const dt = (performance.now() - t0).toFixed(1);
         setBadge(runBadge, 'err', `error · ${dt}ms`);
-        runRight.textContent = 'error';
+        // runRight.textContent = 'error';
         const detail = err?.genbyErrors;
         if (Array.isArray(detail) && detail.length > 0) {
             runOutput.textContent = detail
