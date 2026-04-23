@@ -17,6 +17,7 @@ import type {
   TypeDef,
   TypeOptions,
   Value,
+  ValueOfType,
   VariableSpec,
 } from './types.js';
 import type { Type } from './types.js';
@@ -29,7 +30,9 @@ export type AddTypeOptions = TypeOptions;
 
 export type EnumValueInput = string | EnumValueSpec;
 
-export class Genby {
+type ExternalInputs = Record<string, Value>;
+
+export class Genby<Vars extends ExternalInputs = {}> {
   private readonly directives = new Map<string, DirectiveSpec>();
   private readonly functions = new Map<string, FunctionSpec>();
   private readonly variables = new Map<string, VariableSpec>();
@@ -64,7 +67,9 @@ export class Genby {
     return this;
   }
 
-  addVariable<const T extends Type>(spec: VariableSpec<T>): this {
+  addVariable<const N extends string, const T extends Type>(
+    spec: VariableSpec<T> & { name: N },
+  ): Genby<Vars & Record<N, ValueOfType<T>>> {
     this.assertNameFree(spec.name, 'variable');
     if (spec.type === 'ENUM' && !spec.enumKey) {
       throw new Error(
@@ -72,7 +77,7 @@ export class Genby {
       );
     }
     this.variables.set(spec.name, spec as unknown as VariableSpec);
-    return this;
+    return this as unknown as Genby<Vars & Record<N, ValueOfType<T>>>;
   }
 
   addEnum(
@@ -170,7 +175,7 @@ export class Genby {
     return this.types.has(name);
   }
 
-  build(): LangMachine {
+  build(): LangMachine<Vars> {
     this.validateAllTypeReferences();
     const config: LangConfig = {
       directives: new Map(this.directives),
@@ -180,7 +185,7 @@ export class Genby {
       types: new Map(this.types),
       enumValueIndex: new Map(this.enumValueIndex),
     };
-    return new LangMachine(config);
+    return new LangMachine<Vars>(config);
   }
 
   private validateAllTypeReferences(): void {
@@ -250,7 +255,7 @@ export class Genby {
   }
 }
 
-export class LangMachine {
+export class LangMachine<Vars extends ExternalInputs = {}> {
   constructor(readonly config: LangConfig) {}
 
   check(program: string): CheckResult {
@@ -260,8 +265,11 @@ export class LangMachine {
 
   async execute(
     program: string,
-    inputs: Record<string, Value> = {},
+    ...[inputs]: [keyof Vars] extends [never]
+      ? [inputs?: ExternalInputs]
+      : [inputs: Vars]
   ): Promise<Value> {
+    const providedInputs = (inputs ?? {}) as ExternalInputs;
     const { tokens, errors: lexErrs } = lex(program);
     const { program: ast, errors: parseErrs } = parse(tokens);
     const checkResult = check(ast, this.config);
@@ -278,7 +286,7 @@ export class LangMachine {
       );
     }
     try {
-      return await runProgram(ast, this.config, inputs, {
+      return await runProgram(ast, this.config, providedInputs, {
         interpTypes: checkResult.interpTypes,
       });
     } catch (err) {
