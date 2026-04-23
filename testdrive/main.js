@@ -25,6 +25,7 @@ const docsCount = document.getElementById('docsCount');
 const genbyHost = document.getElementById('genbyHost');
 const programRight = document.getElementById('programRight');
 const programMsg = document.getElementById('programMsg');
+const prettifyBtn = document.getElementById('prettifyBtn');
 
 const runBtn = document.getElementById('runBtn');
 const runBadge = document.getElementById('runBadge');
@@ -397,6 +398,7 @@ function mountInput(machine) {
     });
     refreshProgramCheck(input);
     currentInput = input;
+    if (prettifyBtn) prettifyBtn.disabled = false;
 }
 
 async function runProgram() {
@@ -447,6 +449,13 @@ function formatResult(v) {
 // -----------------------------------------------------------------
 
 runBtn.addEventListener('click', runProgram);
+
+if (prettifyBtn) {
+    prettifyBtn.addEventListener('click', () => {
+        if (!currentInput) return;
+        currentInput.prettify();
+    });
+}
 
 // vertical resize handles
 document.querySelectorAll('.resizeHandle[data-resize-target]').forEach((handle) => {

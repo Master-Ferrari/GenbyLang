@@ -5,6 +5,8 @@ export type {
   EnumValueInput,
 } from './genby.js';
 export type { GenbyInput, Unsubscribe } from './input-dom/index.js';
+export { prettify } from './input-dom/index.js';
+export type { PrettifyOptions } from './input-dom/index.js';
 export { generateMarkdownDocs } from './docs.js';
 export type { DocsOptions } from './docs.js';
 export { PRESET_NAMES } from './presets.js';

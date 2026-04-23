@@ -112,12 +112,10 @@ class Parser {
       } catch (err) {
         this.recoverToNextLine();
       }
-      // Require newline or EOF after a statement.
-      if (!this.check('EOF') && !this.check('NEWLINE')) {
-        const t = this.peek();
-        this.addError(t, `Expected end of line, got '${t.text}'`, 'syntax');
-        this.recoverToNextLine();
-      }
+      // Statements are separated by any whitespace — newline or space are
+      // treated equivalently. After a fully-parsed statement we simply loop
+      // back; `skipLineBreaks()` at the top of the loop eats NEWLINE/COMMENT
+      // tokens, and anything else starts the next statement.
     }
 
     const endTok = this.tokens[this.tokens.length - 1]!;

@@ -99,6 +99,20 @@
             font-family: "PT Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
             padding: 32px 20px 40px;
             min-height: 100vh;
+            user-select: text;
+        }
+
+        /* keep interactive chrome (buttons, dropdowns, labels) non-selectable
+           so clicks don't accidentally start text selections */
+        .install-btn,
+        .btn,
+        .example-select__trigger,
+        .example-select__label,
+        .example-select__popup,
+        .example-select__option,
+        .example-label,
+        details.card>summary,
+        .resizeHandle {
             user-select: none;
         }
 
@@ -1102,6 +1116,9 @@
                     aria-orientation="horizontal" title="Drag to resize"></div>
             </details>
             <div class="btn-row">
+                <button class="btn" id="prettifyBtn" type="button" disabled title="reformat program with canonical indentation">
+                    prettify
+                </button>
                 <span class="meta" id="programRight">waiting</span>
             </div>
             <div class="badge-msg" id="programMsg"></div>

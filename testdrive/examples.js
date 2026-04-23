@@ -23,8 +23,8 @@ const VARS_CONFIG = `// the smallest possible language — no functions at all.
 
 import { Genby } from 'genby';
 
-const g = new Genby();
-return g;
+const machine = new Genby();
+return machine;
 `;
 
 const VARS_PROGRAM = `// every line that starts with 'name =' declares a local variable.
@@ -53,15 +53,15 @@ a * b   = {area}
 // 2. your first custom functions — addFunction
 // =================================================================
 
-const CUSTOM_CONFIG = `// declare your own functions via g.addFunction(...).
+const CUSTOM_CONFIG = `// declare your own functions via machine.addFunction(...).
 // each function picks argument types (STR/NUM/BUL/ANY/...), a return
 // type, and a JS handler. the arg array becomes the call signature.
 
 import { Genby, NUM } from 'genby';
 
-const g = new Genby();
+const machine = new Genby();
 
-g.addFunction({
+machine.addFunction({
     name: 'ADD',
     describe: 'sum of two numbers',
     args: [{ name: 'a', type: NUM }, { name: 'b', type: NUM }],
@@ -69,7 +69,7 @@ g.addFunction({
     handler: ([a, b]) => Number(a) + Number(b),
 });
 
-g.addFunction({
+machine.addFunction({
     name: 'MUL',
     describe: 'product of two numbers',
     args: [{ name: 'a', type: NUM }, { name: 'b', type: NUM }],
@@ -77,23 +77,23 @@ g.addFunction({
     handler: ([a, b]) => Number(a) * Number(b),
 });
 
-g.addFunction({
+machine.addFunction({
     name: 'POW',
     describe: 'raise base to the given power',
     args: [{ name: 'base', type: NUM }, { name: 'exp', type: NUM }],
     returns: NUM,
-    handler: ([b, e]) => Math.pow(Number(b), Number(e)),
+    handler: ([base, exp]) => Math.pow(Number(base), Number(exp)),
 });
 
-g.addFunction({
+machine.addFunction({
     name: 'SQRT',
     describe: 'square root of a non-negative number',
-    args: [{ name: 'n', type: NUM }],
+    args: [{ name: 'value', type: NUM }],
     returns: NUM,
-    handler: ([n]) => Math.sqrt(Math.max(0, Number(n))),
+    handler: ([value]) => Math.sqrt(Math.max(0, Number(value))),
 });
 
-return g;
+return machine;
 `;
 
 const CUSTOM_PROGRAM = `// everything is a function call — calls nest freely: SQRT(ADD(...)) etc.
@@ -111,9 +111,9 @@ total = {total}")`;
 // 3. enums — named value sets you can pass to handlers
 // =================================================================
 
-const ENUMS_CONFIG = `// g.addEnum(key, values) registers a set of symbolic names. those names
-// become usable as bare identifiers inside programs — the checker pins
-// each one to the right enum from the argument type it is passed to.
+const ENUMS_CONFIG = `// machine.addEnum(key, values) registers a set of symbolic names. those
+// names become usable as bare identifiers inside programs — the checker
+// pins each one to the right enum from the argument type it is passed to.
 //
 // handlers receive enum values as { __enum, enumKey, name } objects. use
 // makeEnumValue(key, name) to build fresh ones when your function returns
@@ -122,42 +122,42 @@ const ENUMS_CONFIG = `// g.addEnum(key, values) registers a set of symbolic name
 
 import { Genby, STR, ENUM, makeEnumValue } from 'genby';
 
-const g = new Genby();
+const machine = new Genby();
 
-g.addEnum('Color', ['RED', 'GREEN', 'BLUE'], {
+machine.addEnum('Color', ['RED', 'GREEN', 'BLUE'], {
     describe: 'primary colors',
 });
 
-g.addEnum('Mood', ['HAPPY', 'CALM', 'ANGRY']);
+machine.addEnum('Mood', ['HAPPY', 'CALM', 'ANGRY']);
 
 // ENUM -> STR: look up the css hex code for a given color.
-g.addFunction({
+machine.addFunction({
     name: 'HEX',
     describe: 'css hex code for a primary color',
-    args: [{ name: 'c', type: ENUM, enumKey: 'Color' }],
+    args: [{ name: 'color', type: ENUM, enumKey: 'Color' }],
     returns: STR,
-    handler: ([c]) => {
+    handler: ([color]) => {
         const map = { RED: '#ff0033', GREEN: '#22bb55', BLUE: '#1b7dff' };
-        return map[c.name] ?? '#000000';
+        return map[color.name] ?? '#000000';
     },
 });
 
 // ENUM -> ENUM: map a color to the mood it evokes.
 // note the returnsEnumKey next to returns: ENUM — required for any
 // function that hands back an enum value.
-g.addFunction({
+machine.addFunction({
     name: 'MOOD_OF',
     describe: 'map a color to the mood it evokes',
-    args: [{ name: 'c', type: ENUM, enumKey: 'Color' }],
+    args: [{ name: 'color', type: ENUM, enumKey: 'Color' }],
     returns: ENUM,
     returnsEnumKey: 'Mood',
-    handler: ([c]) => {
+    handler: ([color]) => {
         const map = { RED: 'ANGRY', GREEN: 'CALM', BLUE: 'HAPPY' };
-        return makeEnumValue('Mood', map[c.name] ?? 'CALM');
+        return makeEnumValue('Mood', map[color.name] ?? 'CALM');
     },
 });
 
-return g;
+return machine;
 `;
 
 const ENUMS_PROGRAM = `// enum values are written as bare identifiers — RED, GREEN, BLUE here
@@ -185,34 +185,34 @@ const STRINGS_CONFIG = `// a handful of string helpers. they all share the same 
 
 import { Genby, STR, NUM } from 'genby';
 
-const g = new Genby();
+const machine = new Genby();
 
-g.addFunction({
+machine.addFunction({
     name: 'UPPER',
     describe: 'upper-case a string',
-    args: [{ name: 's', type: STR }],
+    args: [{ name: 'text', type: STR }],
     returns: STR,
-    handler: ([s]) => String(s ?? '').toUpperCase(),
+    handler: ([text]) => String(text ?? '').toUpperCase(),
 });
 
-g.addFunction({
+machine.addFunction({
     name: 'LOWER',
     describe: 'lower-case a string',
-    args: [{ name: 's', type: STR }],
+    args: [{ name: 'text', type: STR }],
     returns: STR,
-    handler: ([s]) => String(s ?? '').toLowerCase(),
+    handler: ([text]) => String(text ?? '').toLowerCase(),
 });
 
-g.addFunction({
+machine.addFunction({
     name: 'REPEAT',
     describe: 'repeat a string n times',
-    args: [{ name: 's', type: STR }, { name: 'n', type: NUM }],
+    args: [{ name: 'text', type: STR }, { name: 'times', type: NUM }],
     returns: STR,
-    handler: ([s, n]) =>
-        String(s ?? '').repeat(Math.max(0, Math.floor(Number(n) || 0))),
+    handler: ([text, times]) =>
+        String(text ?? '').repeat(Math.max(0, Math.floor(Number(times) || 0))),
 });
 
-g.addFunction({
+machine.addFunction({
     name: 'REPLACE',
     describe: 'replace every occurrence of \`needle\` with \`replacement\`',
     args: [
@@ -221,19 +221,19 @@ g.addFunction({
         { name: 'replacement', type: STR },
     ],
     returns: STR,
-    handler: ([h, n, r]) =>
-        String(h ?? '').split(String(n ?? '')).join(String(r ?? '')),
+    handler: ([haystack, needle, replacement]) =>
+        String(haystack ?? '').split(String(needle ?? '')).join(String(replacement ?? '')),
 });
 
-g.addFunction({
+machine.addFunction({
     name: 'LEN',
     describe: 'length of a string',
-    args: [{ name: 's', type: STR }],
+    args: [{ name: 'text', type: STR }],
     returns: NUM,
-    handler: ([s]) => String(s ?? '').length,
+    handler: ([text]) => String(text ?? '').length,
 });
 
-return g;
+return machine;
 `;
 
 const STRINGS_PROGRAM = `// calls compose the same way they do in any functional language.
@@ -256,9 +256,9 @@ length = {LEN(greet)}  ·  lower = {LOWER(banner)}")`;
 // 5. arrays & loops — using bundled presets
 // =================================================================
 
-const ARRAYS_CONFIG = `// g.addPreset(name) registers one ready-made function under the same name.
-// mix and match only what you need — see the docs panel on the right for
-// every preset's signature. here we pull:
+const ARRAYS_CONFIG = `// machine.addPreset(name) registers one ready-made function under the
+// same name. mix and match only what you need — see the docs panel on the
+// right for every preset's signature. here we pull:
 //   arrays:  ARR, RANGE, SIZE, AT, SPLIT, JOIN, REVERSE  (ARR type is
 //            auto-registered by any array-using preset)
 //   loops:   WHILE
@@ -266,24 +266,24 @@ const ARRAYS_CONFIG = `// g.addPreset(name) registers one ready-made function un
 
 import { Genby } from 'genby';
 
-const g = new Genby();
+const machine = new Genby();
 
 // arrays
-g.addPreset('ARR');
-g.addPreset('RANGE');
-g.addPreset('SIZE');
-g.addPreset('AT');
-g.addPreset('SPLIT');
-g.addPreset('JOIN');
-g.addPreset('REVERSE');
+machine.addPreset('ARR');
+machine.addPreset('RANGE');
+machine.addPreset('SIZE');
+machine.addPreset('AT');
+machine.addPreset('SPLIT');
+machine.addPreset('JOIN');
+machine.addPreset('REVERSE');
 
 // loops
-g.addPreset('WHILE');
+machine.addPreset('WHILE');
 
 // cast
-g.addPreset('NUM');
+machine.addPreset('NUM');
 
-return g;
+return machine;
 `;
 
 const ARRAYS_PROGRAM = `// build a multiplication table by walking 1..5 with WHILE.
@@ -318,12 +318,12 @@ const RECURSION_CONFIG = `// user functions are written directly in genby — se
 
 import { Genby } from 'genby';
 
-const g = new Genby();
+const machine = new Genby();
 
-g.addPreset('IF');
-g.addPreset('NUM');
+machine.addPreset('IF');
+machine.addPreset('NUM');
 
-return g;
+return machine;
 `;
 
 const RECURSION_PROGRAM = `// genby supports inline function definitions of the form:
@@ -371,18 +371,18 @@ const ASYNC_CONFIG = `// directives are compile-time knobs written as @NAME(...)
 
 import { Genby, STR, NUM } from 'genby';
 
-const g = new Genby();
+const machine = new Genby();
 
 let apiBase = 'https://catfact.ninja';
 
-g.addDirective({
+machine.addDirective({
     name: 'API_BASE',
     describe: 'override the base URL used by FETCH_JSON',
     args: [{ name: 'url', type: STR }],
     handler: ([url]) => { apiBase = String(url ?? apiBase); },
 });
 
-g.addFunction({
+machine.addFunction({
     name: 'FETCH_JSON',
     describe:
         'HTTP GET @API_BASE + path. with a 2nd arg, extracts that top-level ' +
@@ -401,7 +401,7 @@ g.addFunction({
     },
 });
 
-g.addFunction({
+machine.addFunction({
     name: 'SHA256',
     describe: 'async hex SHA-256 digest via window.crypto.subtle',
     args: [{ name: 'text', type: STR }],
@@ -410,24 +410,24 @@ g.addFunction({
         const buf = new TextEncoder().encode(String(text ?? ''));
         const digest = await crypto.subtle.digest('SHA-256', buf);
         return Array.from(new Uint8Array(digest))
-            .map((b) => b.toString(16).padStart(2, '0'))
+            .map((byte) => byte.toString(16).padStart(2, '0'))
             .join('');
     },
 });
 
-g.addFunction({
+machine.addFunction({
     name: 'SHORT',
     describe: 'trim a string to the first n chars, appending an ellipsis',
-    args: [{ name: 's', type: STR }, { name: 'n', type: NUM }],
+    args: [{ name: 'text', type: STR }, { name: 'limit', type: NUM }],
     returns: STR,
-    handler: ([s, n]) => {
-        const str = String(s ?? '');
-        const len = Math.max(0, Math.floor(Number(n) || 0));
-        return str.length > len ? str.slice(0, len) + '…' : str;
+    handler: ([text, limit]) => {
+        const str = String(text ?? '');
+        const max = Math.max(0, Math.floor(Number(limit) || 0));
+        return str.length > max ? str.slice(0, max) + '…' : str;
     },
 });
 
-return g;
+return machine;
 `;
 
 const ASYNC_PROGRAM = `// the directive fires first — its value lives in the closure of the

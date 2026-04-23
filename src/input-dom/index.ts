@@ -17,6 +17,10 @@ import {
 } from './autocomplete.js';
 import type { ArgSpec } from '../types.js';
 import { ensureStylesInjected } from './styles.js';
+import { prettify, type PrettifyOptions } from './prettify.js';
+
+export { prettify } from './prettify.js';
+export type { PrettifyOptions } from './prettify.js';
 
 export type Unsubscribe = () => void;
 
@@ -26,6 +30,14 @@ export interface GenbyInput {
   setValue(text: string): void;
   onChange(cb: (text: string) => void): Unsubscribe;
   check(): CheckResult;
+  /**
+   * Re-format the current program with canonical indentation and line
+   * breaks. If the program has lex or parse errors, nothing is changed —
+   * we refuse to format broken code. Preserves caret position at the
+   * start of the text on success; does not preserve comments (the parser
+   * discards them).
+   */
+  prettify(opts?: PrettifyOptions): void;
   destroy(): void;
 }
 
@@ -614,6 +626,15 @@ export function createInputDom(machine: LangMachine): GenbyInput {
     },
     check(): CheckResult {
       return { ok: state.errors.length === 0, errors: state.errors };
+    },
+    prettify(opts?: PrettifyOptions) {
+      const formatted = prettify(textarea.value, opts);
+      if (formatted === textarea.value) return;
+      textarea.value = formatted;
+      // Place caret at the start after formatting — the old caret offset
+      // is meaningless in the reformatted text.
+      textarea.setSelectionRange(0, 0);
+      onInput();
     },
     destroy() {
       listeners.clear();
