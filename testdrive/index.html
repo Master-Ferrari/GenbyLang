@@ -163,7 +163,7 @@
         }
 
         .install-btn .install-prompt {
-            color: var(--accent);
+            color: var(--accent-3);
         }
 
         .install-btn .install-cmd {
@@ -1044,6 +1044,7 @@
                 <span class="hl">genby</span> strips syntax down to the minimum by treating <span class="hl">everything as a
                 function</span> , so instead of block-heavy structures it leans on nested calls like
                 <code>a = b ( c ( d ) e ( ) , f )</code><br>
+                and by default there are only one function - RETURN . so you may configure lang from floor <br> 
                 the whole system is packaged as a single class where you define your own
                 api , including control flow such as <span class="hl">loops</span> and <span class="hl">branching</span> ,
                 and that same class can also export an input field with <span class="hl">highlighting</span> and completions plus
@@ -1057,11 +1058,11 @@
             </p>
         </div>
 
-        <!-- config language api -->
+        <!-- config your api -->
         <section class="step">
-            <div class="step-title">1. config language api</div>
+            <div class="step-title">1. config your api</div>
             <div class="step-desc">
-                declare functions, variables, enums, and directives on a <code>Genby</code> instance.
+                declare functions, variables, enums, and directives on a <span class="hl" style="color: var(--accent);">genby</span> instance.
                 return the instance at the end.
             </div>
 
@@ -1161,10 +1162,13 @@
 
         <div class="footer">
             <div class="left">
-                <span>made by master-ferrari</span><span class="sep">
+                <span>made by <h2 style="color: var(--accent-3);"><a href="https://github.com/Master-Ferrari"
+                            target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;"
+                            onmouseover="this.style.textDecoration='underline'"
+                            onmouseout="this.style.textDecoration='none'">master-ferrari</a></h2></span><span class="sep">
             </div>
-            <div class="right"><a href="https://t.me/svastic_fantastic" target="_blank"
-                    style="color: var(--text-faint); text-decoration: none;"
+            <div class="right" style="margin-top: 12px;"><a href="https://t.me/svastic_fantastic" target="_blank"
+                    style="color: var(--accent); text-decoration: none;"
                     onmouseover="this.style.textDecoration='underline'"
                     onmouseout="this.style.textDecoration='none'">t.me/svastic_fantastic</a></div>
         </div>
