@@ -1165,6 +1165,36 @@
         </div>
     </div>
 
+    <script>
+        // ---- responsive scale for narrow viewports --------------------
+        // below `desiredWidth` px the whole body is uniformly scaled down
+        // instead of trying to re-flow the fixed mono layout. this keeps
+        // the page readable on phones without a mobile-specific stylesheet.
+        (function () {
+            const desiredWidth = 820;
+
+            function adjustScale() {
+                const currentWidth = Math.min(screen.width, window.innerWidth);
+
+                if (currentWidth <= desiredWidth) {
+                    let scale = Math.pow(currentWidth / desiredWidth, 0.6);
+                    if (scale < 0.33) scale = 0.33;
+
+                    document.body.style.transform = 'scale(' + scale + ')';
+                    document.body.style.transformOrigin = 'center top';
+                } else {
+                    document.body.style.transform = '';
+                    document.body.style.transformOrigin = 'left top';
+                }
+            }
+
+            window.addEventListener('load', () => {
+                adjustScale();
+                window.addEventListener('resize', adjustScale);
+            });
+        })();
+    </script>
+
     <script type="module" src="./main.js"></script>
 </body>
 
