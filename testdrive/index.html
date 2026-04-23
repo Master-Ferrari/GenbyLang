@@ -118,6 +118,7 @@
 
         .page {
             max-width: 820px;
+            min-width: 600px;   
             margin: 0 auto;
             display: grid;
             gap: 42px;
@@ -1180,12 +1181,14 @@
             function adjustScale() {
                 const currentWidth = Math.min(screen.width, window.innerWidth);
 
+                console.log(currentWidth, desiredWidth);
+                
                 if (currentWidth <= desiredWidth) {
-                    let scale = Math.pow(currentWidth / desiredWidth, 0.6);
+                    let scale = Math.pow(currentWidth / desiredWidth, 0.75);
                     if (scale < 0.33) scale = 0.33;
 
                     document.body.style.transform = 'scale(' + scale + ')';
-                    document.body.style.transformOrigin = 'center top';
+                    document.body.style.transformOrigin = 'left top';
                 } else {
                     document.body.style.transform = '';
                     document.body.style.transformOrigin = 'left top';
