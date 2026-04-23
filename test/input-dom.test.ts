@@ -8,7 +8,7 @@ describe('inputDom', () => {
       name: 'LEN',
       args: [{ name: 's', type: STR }],
       returns: NUM,
-      handler: ([s]) => (s as string).length,
+      handler: async ([s]) => (await s.calc()).length,
     });
     const m = g.build();
     const input = m.inputDom();

@@ -1019,7 +1019,7 @@
         <div class="hero">
             <div class="hero-brand">
                 <div class="hero-name">genby<span class="lang">lang</span></div>
-                <div class="hero-version">v1.0.0</div>
+                <div class="hero-version">v1.1</div>
                 <button class="install-btn" id="installBtn" type="button" title="click to copy">
                     <span class="install-prompt">$</span>
                     <span class="install-cmd">npm i genby</span>
@@ -1034,8 +1034,10 @@
                         dependency <span class="val">free</span></span>
             </div>
             <p class="hero-desc">
-                <span class="hl">// genby</span> is a js-executed language built to stay friendly , simple , and fully
-                customizable<br>
+                <span class="hl"> <span style="font-size: 16px;">//</span> genby</span> is a js-executed language built to stay fully
+                customizable , typed , and <i>maximally</i> non-programmer friendly<br>
+            </p>
+            <p class="hero-desc" style="margin-top: 16px;">
                 it strips syntax down to the minimum by treating <span class="hl">everything as a
                 function</span> , so instead of block-heavy structures it leans on nested calls like
                 <code>a ( b ( с ) )</code><br>
@@ -1045,16 +1047,16 @@
                 auto-generated <span class="hl">markdown docs</span>
             </p>
             <p class="hero-desc" style="margin-top: 16px;">
-                <span class="hl">//</span> the page below is a sort of walkthrough , you can see the
+                the page below is a sort of walkthrough , you can see the
                 smallest possible use of the library at
                 <a href="./minimal.html"
                     style="color: var(--accent-3); text-decoration: none; border-bottom: 1px dashed var(--accent-3);">minimal.html</a>
             </p>
         </div>
 
-        <!-- language config -->
+        <!-- config language -->
         <section class="step">
-            <div class="step-title">1. language config</div>
+            <div class="step-title">1. config language</div>
             <div class="step-desc">
                 declare functions, variables, enums, and directives on a <code>Genby</code> instance.
                 return the instance at the end.
@@ -1092,7 +1094,7 @@
         <section class="step">
             <div class="step-title">2. generate docs</div>
             <div class="step-desc">
-                a full markdown reference is produced from your language config via <code>machine.docs()</code>.
+                a full markdown reference is produced from your config language via <code>machine.docs()</code>.
             </div>
 
             <details class="card" id="docsCard">
@@ -1107,7 +1109,7 @@
 
         <!-- program -->
         <section class="step">
-            <div class="step-title">3. genby program</div>
+            <div class="step-title">3. make genby program</div>
             <div class="step-desc">
                 write a program in the language you just declared. syntax highlighting and completions come from
                 <code>machine.inputDom()</code>.
@@ -1132,7 +1134,7 @@
 
         <!-- run -->
         <section class="step">
-            <div class="step-title">4. run</div>
+            <div class="step-title">4. run genby</div>
             <div class="step-desc">
                 executes the program against your configured handlers. the return value is rendered below.
             </div>

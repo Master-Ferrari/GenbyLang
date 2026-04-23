@@ -55,18 +55,29 @@ a * b   = {area}
 
 const CUSTOM_CONFIG = `// declare your own functions via machine.addFunction(...).
 // each function picks argument types (STR/NUM/BUL/ANY/...), a return
-// type, and a JS handler. the arg array becomes the call signature.
+// type, and a JS handler. handlers receive Arg<T> handles and decide
+// when to evaluate each argument via await arg.calc().
+//
+// this example also defines an external variable NOW_MS (system time).
+// in this testdrive we patch machine.execute(...) to inject NOW_MS
+// automatically on every run.
 
 import { Genby, NUM } from 'genby';
 
 const machine = new Genby();
+
+machine.addVariable({
+    name: 'NOW_MS',
+    type: NUM,
+    describe: 'system timestamp in milliseconds (injected by the host)',
+});
 
 machine.addFunction({
     name: 'ADD',
     describe: 'sum of two numbers',
     args: [{ name: 'a', type: NUM }, { name: 'b', type: NUM }],
     returns: NUM,
-    handler: ([a, b]) => Number(a) + Number(b),
+    handler: async ([a, b]) => Number(await a.calc()) + Number(await b.calc()),
 });
 
 machine.addFunction({
@@ -74,7 +85,7 @@ machine.addFunction({
     describe: 'product of two numbers',
     args: [{ name: 'a', type: NUM }, { name: 'b', type: NUM }],
     returns: NUM,
-    handler: ([a, b]) => Number(a) * Number(b),
+    handler: async ([a, b]) => Number(await a.calc()) * Number(await b.calc()),
 });
 
 machine.addFunction({
@@ -82,7 +93,7 @@ machine.addFunction({
     describe: 'raise base to the given power',
     args: [{ name: 'base', type: NUM }, { name: 'exp', type: NUM }],
     returns: NUM,
-    handler: ([base, exp]) => Math.pow(Number(base), Number(exp)),
+    handler: async ([base, exp]) => Math.pow(Number(await base.calc()), Number(await exp.calc())),
 });
 
 machine.addFunction({
@@ -90,22 +101,57 @@ machine.addFunction({
     describe: 'square root of a non-negative number',
     args: [{ name: 'value', type: NUM }],
     returns: NUM,
-    handler: ([value]) => Math.sqrt(Math.max(0, Number(value))),
+    handler: async ([value]) => Math.sqrt(Math.max(0, Number(await value.calc()))),
 });
 
-return machine;
+machine.addFunction({
+    name: 'NOW',
+    describe: 'current system timestamp (Date.now)',
+    args: [],
+    returns: NUM,
+    handler: async () => Date.now(),
+});
+
+machine.addFunction({
+    name: 'DRIFT',
+    describe: 'evaluates one argument twice and returns second - first',
+    args: [{ name: 'value', type: NUM }],
+    returns: NUM,
+    handler: async ([value]) => {
+        const first = Number(await value.calc());
+        const second = Number(await value.calc());
+        return second - first;
+    },
+});
+
+const built = machine.build();
+const originalExecute = built.execute.bind(built);
+built.execute = (program, inputs = {}) =>
+    originalExecute(program, { NOW_MS: Date.now(), ...inputs });
+
+return built;
 `;
 
 const CUSTOM_PROGRAM = `// everything is a function call — calls nest freely: SQRT(ADD(...)) etc.
+// NOW_MS is provided by the host at run-time.
 area  = MUL(8, 9)
 cube  = POW(3, 3)
 hypot = SQRT(ADD(POW(3, 2), POW(4, 2)))
 total = ADD(area, cube)
+now   = NOW_MS
+// DRIFT calls calc() twice.
+// - external NOW_MS is stable for the whole run -> usually 0
+// - NOW() is re-executed twice -> usually > 0
+stable = DRIFT(NOW_MS + 1)
+live   = DRIFT(NOW())
 
 RETURN("area  = {area}
 cube  = {cube}
 hypot = {hypot}
-total = {total}")`;
+total = {total}
+now   = {now}
+drift(stable source) = {stable}
+drift(recomputed)    = {live}")`;
 
 // =================================================================
 // 3. enums — named value sets you can pass to handlers
@@ -115,7 +161,8 @@ const ENUMS_CONFIG = `// machine.addEnum(key, values) registers a set of symboli
 // names become usable as bare identifiers inside programs — the checker
 // pins each one to the right enum from the argument type it is passed to.
 //
-// handlers receive enum values as { __enum, enumKey, name } objects. use
+// handlers receive Arg<EnumValue> handles; call await color.calc() to get
+// { __enum, enumKey, name }. use
 // makeEnumValue(key, name) to build fresh ones when your function returns
 // an enum. an enum-returning function must also set returnsEnumKey so the
 // type checker knows which enum it produces.
@@ -136,9 +183,10 @@ machine.addFunction({
     describe: 'css hex code for a primary color',
     args: [{ name: 'color', type: ENUM, enumKey: 'Color' }],
     returns: STR,
-    handler: ([color]) => {
+    handler: async ([color]) => {
+        const resolved = await color.calc();
         const map = { RED: '#ff0033', GREEN: '#22bb55', BLUE: '#1b7dff' };
-        return map[color.name] ?? '#000000';
+        return map[resolved.name] ?? '#000000';
     },
 });
 
@@ -151,9 +199,10 @@ machine.addFunction({
     args: [{ name: 'color', type: ENUM, enumKey: 'Color' }],
     returns: ENUM,
     returnsEnumKey: 'Mood',
-    handler: ([color]) => {
+    handler: async ([color]) => {
+        const resolved = await color.calc();
         const map = { RED: 'ANGRY', GREEN: 'CALM', BLUE: 'HAPPY' };
-        return makeEnumValue('Mood', map[color.name] ?? 'CALM');
+        return makeEnumValue('Mood', map[resolved.name] ?? 'CALM');
     },
 });
 
@@ -181,7 +230,7 @@ BLUE  = {blue_hex}  ( mood : {mood_blue} )")`;
 // =================================================================
 
 const STRINGS_CONFIG = `// a handful of string helpers. they all share the same pattern:
-// STR-typed args, STR return, plain JS in the handler.
+// STR-typed args, STR return, plain JS in the handler after await arg.calc().
 
 import { Genby, STR, NUM } from 'genby';
 
@@ -192,7 +241,7 @@ machine.addFunction({
     describe: 'upper-case a string',
     args: [{ name: 'text', type: STR }],
     returns: STR,
-    handler: ([text]) => String(text ?? '').toUpperCase(),
+    handler: async ([text]) => String((await text.calc()) ?? '').toUpperCase(),
 });
 
 machine.addFunction({
@@ -200,7 +249,7 @@ machine.addFunction({
     describe: 'lower-case a string',
     args: [{ name: 'text', type: STR }],
     returns: STR,
-    handler: ([text]) => String(text ?? '').toLowerCase(),
+    handler: async ([text]) => String((await text.calc()) ?? '').toLowerCase(),
 });
 
 machine.addFunction({
@@ -208,8 +257,8 @@ machine.addFunction({
     describe: 'repeat a string n times',
     args: [{ name: 'text', type: STR }, { name: 'times', type: NUM }],
     returns: STR,
-    handler: ([text, times]) =>
-        String(text ?? '').repeat(Math.max(0, Math.floor(Number(times) || 0))),
+    handler: async ([text, times]) =>
+        String((await text.calc()) ?? '').repeat(Math.max(0, Math.floor(Number(await times.calc()) || 0))),
 });
 
 machine.addFunction({
@@ -221,8 +270,8 @@ machine.addFunction({
         { name: 'replacement', type: STR },
     ],
     returns: STR,
-    handler: ([haystack, needle, replacement]) =>
-        String(haystack ?? '').split(String(needle ?? '')).join(String(replacement ?? '')),
+    handler: async ([haystack, needle, replacement]) =>
+        String((await haystack.calc()) ?? '').split(String((await needle.calc()) ?? '')).join(String((await replacement.calc()) ?? '')),
 });
 
 machine.addFunction({
@@ -230,7 +279,7 @@ machine.addFunction({
     describe: 'length of a string',
     args: [{ name: 'text', type: STR }],
     returns: NUM,
-    handler: ([text]) => String(text ?? '').length,
+    handler: async ([text]) => String((await text.calc()) ?? '').length,
 });
 
 return machine;
@@ -331,6 +380,8 @@ const RECURSION_PROGRAM = `// genby supports inline function definitions of the 
 // the body is a block; its last expression is the function's value.
 // names are hoisted, so functions can call themselves (recursion) and
 // each other regardless of order.
+// important (new semantics): each read of a user-fn param re-evaluates
+// the caller expression unless you cache it in a local variable.
 
 // classic factorial.  IF's 'else' branch is evaluated lazily, which is
 // exactly what stops the recursion from blowing the stack.
@@ -379,7 +430,7 @@ machine.addDirective({
     name: 'API_BASE',
     describe: 'override the base URL used by FETCH_JSON',
     args: [{ name: 'url', type: STR }],
-    handler: ([url]) => { apiBase = String(url ?? apiBase); },
+    handler: async ([url]) => { apiBase = String((await url.calc()) ?? apiBase); },
 });
 
 machine.addFunction({
@@ -393,10 +444,10 @@ machine.addFunction({
     ],
     returns: STR,
     handler: async ([path, field]) => {
-        const res = await fetch(apiBase + String(path ?? ''));
+        const res = await fetch(apiBase + String((await path.calc()) ?? ''));
         if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
         const data = await res.json();
-        if (field) return String(data[String(field)] ?? '');
+        if (field) return String(data[String(await field.calc())] ?? '');
         return JSON.stringify(data, null, 2);
     },
 });
@@ -407,7 +458,7 @@ machine.addFunction({
     args: [{ name: 'text', type: STR }],
     returns: STR,
     handler: async ([text]) => {
-        const buf = new TextEncoder().encode(String(text ?? ''));
+        const buf = new TextEncoder().encode(String((await text.calc()) ?? ''));
         const digest = await crypto.subtle.digest('SHA-256', buf);
         return Array.from(new Uint8Array(digest))
             .map((byte) => byte.toString(16).padStart(2, '0'))
@@ -420,9 +471,9 @@ machine.addFunction({
     describe: 'trim a string to the first n chars, appending an ellipsis',
     args: [{ name: 'text', type: STR }, { name: 'limit', type: NUM }],
     returns: STR,
-    handler: ([text, limit]) => {
-        const str = String(text ?? '');
-        const max = Math.max(0, Math.floor(Number(limit) || 0));
+    handler: async ([text, limit]) => {
+        const str = String((await text.calc()) ?? '');
+        const max = Math.max(0, Math.floor(Number(await limit.calc()) || 0));
         return str.length > max ? str.slice(0, max) + '…' : str;
     },
 });

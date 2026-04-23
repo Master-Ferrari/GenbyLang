@@ -168,7 +168,7 @@ ${body}
 
 // ---- helpers ----
 
-function formatArgsList(args: ArgSpec[]): string {
+function formatArgsList(args: readonly ArgSpec[]): string {
   if (args.length === 0) return '()';
   return `(${args.map(formatArg).join(', ')})`;
 }
@@ -190,14 +190,13 @@ function formatType(type: Type | 'VOID', enumKey?: string): string {
   return type;
 }
 
-function renderArgsList(args: ArgSpec[]): string {
+function renderArgsList(args: readonly ArgSpec[]): string {
   return args
     .map((a) => {
       const t = formatType(a.type, a.enumKey);
       const tags: string[] = [];
       if (a.rest) tags.push('variadic');
       if (a.optional) tags.push('optional');
-      if (a.lazy) tags.push('lazy');
       const tagStr = tags.length ? ` _(${tags.join(', ')})_` : '';
       const desc = a.describe ? ` — ${a.describe.trim()}` : '';
       return `- \`${a.name}\`: \`${t}\`${tagStr}${desc}`;

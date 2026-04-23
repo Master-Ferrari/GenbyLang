@@ -14,7 +14,7 @@ export interface SignatureInfo {
   /** 'function' or 'directive' */
   kind: 'function' | 'directive';
   name: string;
-  args: ArgSpec[];
+  args: readonly ArgSpec[];
   /** 0-based index of the current argument slot. */
   activeIndex: number;
   /** Return type for functions, null for directives. */
@@ -292,7 +292,7 @@ function lookupCallable(
   return config.functions.get(name) ?? config.directives.get(name) ?? null;
 }
 
-function clampActiveIndex(args: ArgSpec[], idx: number): number {
+function clampActiveIndex(args: readonly ArgSpec[], idx: number): number {
   if (args.length === 0) return 0;
   if (idx < args.length) return idx;
   const last = args[args.length - 1];

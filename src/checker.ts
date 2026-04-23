@@ -65,8 +65,6 @@ export interface CallInfo {
   functionName?: string;
   /** Resolved expected types per argument position (after rest expansion). */
   expectedArgs?: ResolvedType[];
-  /** For each argument, whether the corresponding ArgSpec has lazy=true. */
-  lazyFlags?: boolean[];
 }
 
 export function check(program: Program, config: LangConfig): CheckOutput {
@@ -481,7 +479,6 @@ class Checker {
         kind: 'user_function',
         functionName: name,
         expectedArgs: expr.args.map(() => ({ kind: ANY })),
-        lazyFlags: expr.args.map(() => false),
       });
       return { kind: ANY };
     }
@@ -506,15 +503,10 @@ class Checker {
       expr.calleeSpan,
       { constOnly: false },
     );
-    const lazyFlags: boolean[] = expr.args.map((_, i) => {
-      const s = i < spec.args.length ? spec.args[i] : spec.args[spec.args.length - 1];
-      return s?.lazy === true;
-    });
     this.callInfo.set(expr, {
       kind: 'function',
       functionName: spec.name,
       expectedArgs: expected,
-      lazyFlags,
     });
     if (spec.returns === 'VOID') return { kind: 'VOID' };
     return typeSpecToResolved(spec.returns, spec.returnsEnumKey);
@@ -522,7 +514,7 @@ class Checker {
 
   private checkCallArgs(
     args: Expression[],
-    specs: ArgSpec[],
+    specs: readonly ArgSpec[],
     name: string,
     nameSpan: SourceSpan,
     opts: { constOnly: boolean },
@@ -567,7 +559,6 @@ class Checker {
       }
       const expectedType = typeSpecToResolved(spec.type, spec.enumKey);
       expected.push(expectedType);
-      if (spec.lazy) continue; // lazy args: handler decides how to use the value
       if (actual.kind === 'ANY') continue;
       if (!matchesExpected(expectedType, actual)) {
         this.err(

@@ -11,7 +11,16 @@ export { generateMarkdownDocs } from './docs.js';
 export type { DocsOptions } from './docs.js';
 export { PRESET_NAMES } from './presets.js';
 export type { PresetName } from './presets.js';
-export { STR, NUM, BUL, ENUM, ANY, makeEnumValue, isEnumValue } from './types.js';
+export {
+  STR,
+  NUM,
+  BUL,
+  ENUM,
+  ANY,
+  VOID,
+  makeEnumValue,
+  isEnumValue,
+} from './types.js';
 export type {
   Value,
   EnumValue,
@@ -28,6 +37,8 @@ export type {
   CheckResult,
   GenbyError,
   ErrorKind,
-  Thunk,
-  HandlerArg,
+  Arg,
+  HandlerArgs,
+  TypeValueMap,
+  ValueOfType,
 } from './types.js';

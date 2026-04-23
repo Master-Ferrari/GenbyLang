@@ -10,7 +10,7 @@ import type {
   UnaryExpr,
   UserFunDefStatement,
 } from './ast.js';
-import type { EnumValue, GenbyError, HandlerArg, Value } from './types.js';
+import type { Arg, EnumValue, GenbyError, Value } from './types.js';
 import { isEnumValue, makeEnumValue } from './types.js';
 import { RETURN, type LangConfig } from './config.js';
 import type { ResolvedType } from './checker.js';
@@ -43,9 +43,14 @@ export async function runDirectives(
   for (const dir of program.directives) {
     const spec = config.directives.get(dir.name);
     if (!spec) continue;
-    const args = dir.args.map((a) => evalConst(a, config, dir.span));
+    const handles = buildDirectiveArgs(dir.args, spec.args, config, dir.span);
     try {
-      await spec.handler(args);
+      // spec.handler is typed against the declared arg tuple; at runtime we
+      // pass the same-shape array with Arg<Value> handles. The handler only
+      // reads through `.calc()`, which honours the declared TS types.
+      await (
+        spec.handler as (args: readonly unknown[]) => void | Promise<void>
+      )(handles);
     } catch (err) {
       throw new GenbyRuntimeError(
         `Directive '@${dir.name}' failed: ${errMessage(err)}`,
@@ -74,11 +79,9 @@ export async function runProgram(
 
   const env = new Map<string, Value>();
   // Seed external variable values.
-  for (const [name, spec] of config.variables) {
+  for (const [name, _spec] of config.variables) {
     if (name in inputs) {
       env.set(name, inputs[name]!);
-    } else {
-      // Missing input — leave undefined; will be caught when referenced.
     }
   }
 
@@ -118,6 +121,33 @@ interface EvalContext {
   inputs: Record<string, Value>;
   userFns: UserFnMap;
   interpTypes: Map<number, ResolvedType>;
+}
+
+/**
+ * Sentinel for user-fn parameters bound as lazy thunks inside `env`. Reading
+ * the parameter identifier calls the thunk, which re-evaluates the caller's
+ * argument expression in the caller's scope. Every read re-runs the thunk —
+ * side effects duplicate per read (documented feature). Assigning to the
+ * parameter name overwrites the binding with a concrete value, shadowing
+ * the thunk for the rest of the body.
+ */
+const PARAM_THUNK = Symbol.for('genby.paramThunk');
+
+interface ParamThunk {
+  readonly [PARAM_THUNK]: true;
+  run(): Promise<Value>;
+}
+
+function makeParamThunk(run: () => Promise<Value>): ParamThunk {
+  return { [PARAM_THUNK]: true, run };
+}
+
+function isParamThunk(v: unknown): v is ParamThunk {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    (v as { [PARAM_THUNK]?: true })[PARAM_THUNK] === true
+  );
 }
 
 async function evalExpr(
@@ -186,21 +216,22 @@ async function evalString(
   return out.join('');
 }
 
-function evalIdent(
+async function evalIdent(
   name: string,
   span: SourceSpan,
   env: Map<string, Value>,
   ctx: EvalContext,
-): Value {
+): Promise<Value> {
   if (env.has(name)) {
-    const v = env.get(name);
-    if (v === undefined) {
+    const raw = env.get(name);
+    if (isParamThunk(raw)) return raw.run();
+    if (raw === undefined) {
       throw new GenbyRuntimeError(
         `Variable '${name}' is used before being assigned`,
         span,
       );
     }
-    return v;
+    return raw;
   }
   if (ctx.config.variables.has(name)) {
     if (!(name in ctx.inputs)) {
@@ -309,8 +340,10 @@ async function evalCall(
     );
   }
 
-  // User-defined function? Save/overlay params in the shared env; body runs
-  // against the same environment so outer-variable mutations are visible.
+  // User-defined function: install each param as a lazy thunk binding in
+  // the shared env. Every read in the body re-evaluates the caller's arg
+  // expression; side effects duplicate by design. Assigning to the param
+  // name replaces the thunk with a concrete value for the rest of the body.
   const userFn = ctx.userFns.get(name);
   if (userFn) {
     if (expr.args.length !== userFn.params.length) {
@@ -320,24 +353,26 @@ async function evalCall(
         'type',
       );
     }
-    // Eagerly evaluate caller args (user fns don't support laziness on params).
-    const argValues: Value[] = [];
-    for (const a of expr.args) {
-      argValues.push(await evalExpr(a, env, ctx));
-    }
-    const saved: Array<[string, Value | undefined, boolean]> = [];
+    // Snapshot the caller's scope so each param thunk resolves its own free
+    // variables against the call-site state, even after the body mutates
+    // bindings with the same names.
+    const callerSnapshot = new Map(env);
+    const saved: Array<{ name: string; prev: Value | undefined; had: boolean }> = [];
     for (let i = 0; i < userFn.params.length; i++) {
       const p = userFn.params[i]!;
-      const had = env.has(p.name);
-      saved.push([p.name, env.get(p.name), had]);
-      env.set(p.name, argValues[i]!);
+      const argExpr = expr.args[i]!;
+      saved.push({ name: p.name, prev: env.get(p.name), had: env.has(p.name) });
+      env.set(
+        p.name,
+        makeParamThunk(() => evalExpr(argExpr, callerSnapshot, ctx)),
+      );
     }
     try {
       return await evalBlock(userFn.body, env, ctx);
     } finally {
-      for (const [pname, prev, had] of saved) {
-        if (had) env.set(pname, prev as Value);
-        else env.delete(pname);
+      for (const s of saved) {
+        if (s.had) env.set(s.name, s.prev as Value);
+        else env.delete(s.name);
       }
     }
   }
@@ -347,25 +382,12 @@ async function evalCall(
     throw new GenbyRuntimeError(`Unknown function '${name}'`, expr.calleeSpan);
   }
 
-  const argValues: HandlerArg[] = [];
-  for (let i = 0; i < expr.args.length; i++) {
-    const a = expr.args[i]!;
-    const argSpec =
-      i < spec.args.length
-        ? spec.args[i]
-        : spec.args.length > 0
-          ? spec.args[spec.args.length - 1]
-          : undefined;
-    if (argSpec?.lazy) {
-      const thunk = async () => evalExpr(a, env, ctx);
-      argValues.push(thunk);
-    } else {
-      argValues.push(await evalExpr(a, env, ctx));
-    }
-  }
+  const handlerArgs = buildCallArgs(expr.args, spec.args, env, ctx);
 
   try {
-    return await spec.handler(argValues);
+    return await (
+      spec.handler as (args: readonly unknown[]) => Value | Promise<Value>
+    )(handlerArgs);
   } catch (err) {
     if (err instanceof GenbyRuntimeError) throw err;
     throw new GenbyRuntimeError(
@@ -373,6 +395,118 @@ async function evalCall(
       expr.calleeSpan,
     );
   }
+}
+
+/**
+ * Build the handler-arg tuple for a function call. Each declared arg maps to
+ * one slot:
+ *  - plain      →  a single `Arg<T>` handle
+ *  - optional   →  `Arg<T>` if caller provided the expression, else `undefined`
+ *  - rest       →  array of `Arg<T>` handles, one per extra positional arg
+ *
+ * Arity is validated by the checker; this builder is forgiving at runtime so
+ * a runtime error can surface through a clearer message if it slips through.
+ */
+function buildCallArgs(
+  callerArgs: Expression[],
+  specs: readonly { name: string; type: string; enumKey?: string; optional?: boolean; rest?: boolean }[],
+  env: Map<string, Value>,
+  ctx: EvalContext,
+): unknown[] {
+  const out: unknown[] = [];
+  for (let i = 0; i < specs.length; i++) {
+    const spec = specs[i]!;
+    if (spec.rest) {
+      const rest: Arg[] = [];
+      for (let j = i; j < callerArgs.length; j++) {
+        rest.push(makeCallArg(spec, callerArgs[j]!, env, ctx));
+      }
+      out.push(rest);
+      return out;
+    }
+    const callerExpr = callerArgs[i];
+    if (callerExpr === undefined) {
+      if (spec.optional) {
+        out.push(undefined);
+        continue;
+      }
+      // Unreachable under the current checker but we keep the branch for
+      // safety: handlers will see `undefined` and can no-op accordingly.
+      out.push(undefined);
+      continue;
+    }
+    out.push(makeCallArg(spec, callerExpr, env, ctx));
+  }
+  return out;
+}
+
+function makeCallArg(
+  spec: { name: string; type: string; enumKey?: string },
+  expr: Expression,
+  env: Map<string, Value>,
+  ctx: EvalContext,
+): Arg {
+  const handle: Arg = {
+    name: spec.name,
+    type: spec.type,
+    calc: () => evalExpr(expr, env, ctx),
+  };
+  if (spec.enumKey !== undefined) {
+    (handle as { enumKey?: string }).enumKey = spec.enumKey;
+  }
+  return handle;
+}
+
+function buildDirectiveArgs(
+  callerArgs: Expression[],
+  specs: readonly { name: string; type: string; enumKey?: string; optional?: boolean; rest?: boolean }[],
+  config: LangConfig,
+  fallbackSpan: SourceSpan,
+): unknown[] {
+  // Directives require constant expressions (enforced by the checker), so
+  // there is no caller env to thread through. We evaluate constants once up
+  // front and wrap each in an `Arg` whose `calc()` returns the stored value,
+  // keeping parity with the function-handler API.
+  const out: unknown[] = [];
+  for (let i = 0; i < specs.length; i++) {
+    const spec = specs[i]!;
+    if (spec.rest) {
+      const rest: Arg[] = [];
+      for (let j = i; j < callerArgs.length; j++) {
+        const value = evalConst(callerArgs[j]!, config, fallbackSpan);
+        rest.push(wrapConstArg(spec, value));
+      }
+      out.push(rest);
+      return out;
+    }
+    const expr = callerArgs[i];
+    if (expr === undefined) {
+      if (spec.optional) {
+        out.push(undefined);
+        continue;
+      }
+      out.push(undefined);
+      continue;
+    }
+    const value = evalConst(expr, config, fallbackSpan);
+    out.push(wrapConstArg(spec, value));
+  }
+  return out;
+}
+
+function wrapConstArg(
+  spec: { name: string; type: string; enumKey?: string },
+  value: Value,
+): Arg {
+  const handle: Arg = {
+    name: spec.name,
+    type: spec.type,
+    calc: async () => value,
+  };
+  if (spec.enumKey !== undefined) {
+    (handle as { enumKey?: string }).enumKey = spec.enumKey;
+  }
+  return handle;
 }
 
 function valueEquals(a: Value, b: Value): boolean {

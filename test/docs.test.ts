@@ -29,7 +29,7 @@ function makeRichMachine() {
     describe: 'Length of a string in characters.',
     args: [{ name: 's', type: STR }],
     returns: NUM,
-    handler: ([s]) => (s as string).length,
+    handler: async ([s]) => (await s.calc()).length,
   });
   g.addFunction({
     name: 'LLM',

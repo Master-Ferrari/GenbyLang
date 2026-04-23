@@ -19,6 +19,7 @@ import type {
   Value,
   VariableSpec,
 } from './types.js';
+import type { Type } from './types.js';
 
 export interface AddEnumOptions {
   describe?: string;
@@ -36,31 +37,41 @@ export class Genby {
   private readonly types = new Map<string, TypeDef>();
   private readonly enumValueIndex = new Map<string, string>();
 
-  addDirective(spec: DirectiveSpec): this {
+  /**
+   * Register a directive. Using a `const` generic on `DS` keeps the declared
+   * arg tuple as literal types so the handler tuple maps to the right
+   * `Arg<T>` shapes at the call site.
+   */
+  addDirective<const DS extends readonly ArgSpec[]>(
+    spec: DirectiveSpec<DS>,
+  ): this {
     this.assertNameFree(spec.name, 'directive');
-    this.directives.set(spec.name, spec);
+    this.directives.set(spec.name, spec as unknown as DirectiveSpec);
     return this;
   }
 
-  addFunction(spec: FunctionSpec): this {
+  addFunction<
+    const DS extends readonly ArgSpec[],
+    const R extends Type | 'VOID',
+  >(spec: FunctionSpec<DS, R>): this {
     this.assertNameFree(spec.name, 'function');
     if (spec.returns === 'ENUM' && !spec.returnsEnumKey) {
       throw new Error(
         `Function '${spec.name}' returns ENUM but no returnsEnumKey was provided`,
       );
     }
-    this.functions.set(spec.name, spec);
+    this.functions.set(spec.name, spec as unknown as FunctionSpec);
     return this;
   }
 
-  addVariable(spec: VariableSpec): this {
+  addVariable<const T extends Type>(spec: VariableSpec<T>): this {
     this.assertNameFree(spec.name, 'variable');
     if (spec.type === 'ENUM' && !spec.enumKey) {
       throw new Error(
         `Variable '${spec.name}' is ENUM but no enumKey was provided`,
       );
     }
-    this.variables.set(spec.name, spec);
+    this.variables.set(spec.name, spec as unknown as VariableSpec);
     return this;
   }
 

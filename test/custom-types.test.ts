@@ -14,7 +14,7 @@ function buildArrMachine() {
       { name: 'sep', type: STR },
     ],
     returns: 'ARR',
-    handler: ([s, sep]) => (s as string).split(sep as string),
+    handler: async ([s, sep]) => (await s.calc()).split(await sep.calc()),
   });
   g.addFunction({
     name: 'JOIN',
@@ -23,13 +23,14 @@ function buildArrMachine() {
       { name: 'sep', type: STR },
     ],
     returns: STR,
-    handler: ([arr, sep]) => (arr as string[]).join(sep as string),
+    handler: async ([arr, sep]) =>
+      ((await arr.calc()) as string[]).join(await sep.calc()),
   });
   g.addFunction({
     name: 'SIZE',
     args: [{ name: 'arr', type: 'ARR' }],
     returns: NUM,
-    handler: ([arr]) => (arr as unknown[]).length,
+    handler: async ([arr]) => ((await arr.calc()) as unknown[]).length,
   });
   return g.build();
 }
@@ -70,7 +71,10 @@ RETURN(out)`;
       name: 'BOX',
       args: [{ name: 'v', type: STR }],
       returns: 'BOX',
-      handler: ([v]) => ({ toString: () => `BOX(${v})` }),
+      handler: async ([v]) => {
+        const inner = await v.calc();
+        return { toString: () => `BOX(${inner})` };
+      },
     });
     const m = g.build();
     const result = await m.execute(`b = BOX("x")
@@ -168,7 +172,7 @@ RETURN(flag)`);
       name: 'SIZE',
       args: [{ name: 'a', type: 'ARR' }],
       returns: NUM,
-      handler: ([a]) => (a as unknown[]).length,
+      handler: async ([a]) => ((await a.calc()) as unknown[]).length,
     });
     const m = g.build();
     const src = `n = SIZE(ITEMS)

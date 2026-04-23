@@ -28,7 +28,7 @@ function buildMachine() {
     name: 'LEN',
     args: [{ name: 's', type: STR }],
     returns: NUM,
-    handler: ([s]) => (s as string).length,
+    handler: async ([s]) => (await s.calc()).length,
   });
   g.addFunction({
     name: 'LOG',
@@ -46,7 +46,7 @@ function buildMachine() {
       { name: 'prompt', type: STR },
     ],
     returns: STR,
-    handler: ([_model, prompt]) => `out:${prompt}`,
+      handler: async ([_model, prompt]) => `out:${await prompt.calc()}`,
   });
 
   return g.build();
@@ -151,7 +151,8 @@ RETURN(out)
       name: 'CONCAT',
       args: [{ name: 'parts', type: STR, rest: true }],
       returns: STR,
-      handler: (parts) => parts.map((p) => String(p)).join(''),
+      handler: async ([parts]) =>
+        (await Promise.all(parts.map((p) => p.calc()))).join(''),
     });
     const m = g.build();
     const check = m.check('x = CONCAT("a", "b", "c")\nRETURN(x)');
@@ -179,7 +180,7 @@ RETURN(out)
       name: 'GATE',
       args: [{ name: 'b', type: BUL }],
       returns: STR,
-      handler: ([b]) => (b ? 'yes' : 'no'),
+      handler: async ([b]) => ((await b.calc()) ? 'yes' : 'no'),
     });
     const m = g.build();
     const src = 'x = GATE(1 < 2)\nRETURN(x)';

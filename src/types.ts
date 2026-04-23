@@ -3,6 +3,7 @@ export const NUM = 'NUM' as const;
 export const BUL = 'BUL' as const;
 export const ENUM = 'ENUM' as const;
 export const ANY = 'ANY' as const;
+export const VOID = 'VOID' as const;
 
 /**
  * A type tag. Built-in tags are `STR`, `NUM`, `BUL`, `ENUM`, `ANY`; any other
@@ -30,44 +31,108 @@ export type EnumValue = { readonly __enum: true; enumKey: string; name: string }
  */
 export type Value = unknown;
 
-export interface ArgSpec {
+/**
+ * Static mapping from a type tag (string literal) to the TS value type a
+ * handler sees after calling `arg.calc()`. Built-ins are declared here;
+ * user-registered custom types extend this map via declaration merging:
+ *
+ * ```ts
+ * declare module 'genby' {
+ *   interface TypeValueMap { ARR: readonly unknown[] }
+ * }
+ * ```
+ */
+export interface TypeValueMap {
+  STR: string;
+  NUM: number;
+  BUL: boolean;
+  ENUM: EnumValue;
+  ANY: Value;
+  VOID: void;
+}
+
+/**
+ * Lookup helper: maps a type tag string to its TS value type, falling back
+ * to `Value` (unknown) when the tag isn't known to `TypeValueMap`. Custom
+ * types default to `Value` until the user augments `TypeValueMap`.
+ */
+export type ValueOfType<T extends string> = T extends keyof TypeValueMap
+  ? TypeValueMap[T]
+  : Value;
+
+/**
+ * Runtime handle for a single positional argument of a function / directive
+ * call. Every argument is a handle — the handler decides when (and whether)
+ * to evaluate it by calling `calc()`.
+ *
+ * Semantics of `calc()`:
+ *  - Evaluates the caller's expression in the caller's scope.
+ *  - Is NOT memoized. Two calls = two evaluations (including side effects).
+ *    If you need the value multiple times, cache it manually: `const v = await arg.calc()`.
+ *  - Returns a `Promise<T>` matching the declared type tag (via `TypeValueMap`).
+ */
+export interface Arg<T = Value> {
+  readonly name: string;
+  readonly type: string;
+  readonly enumKey?: string;
+  calc(): Promise<T>;
+}
+
+export interface ArgSpec<T extends string = string> {
   name: string;
-  type: Type;
+  type: T;
   enumKey?: string;
   optional?: boolean;
   rest?: boolean;
-  /**
-   * If true, the handler receives a zero-arg thunk `() => Promise<Value>` for
-   * this slot instead of an evaluated value, and calling the thunk (re-)runs
-   * the corresponding argument expression in the caller's environment.
-   */
-  lazy?: boolean;
   describe?: string;
 }
 
-export type Thunk = () => Promise<Value>;
-export type HandlerArg = Value | Thunk;
+/**
+ * Tuple of `Arg<T>` handles produced from a tuple of `ArgSpec` declarations.
+ * Used as the handler's parameter type — preserves per-position typing so
+ * `await args[i].calc()` gets the right TS type without casts.
+ *
+ * - plain arg  →  `Arg<T>`
+ * - optional   →  `Arg<T> | undefined`
+ * - rest       →  `Arg<T>[]`  (one slot, array of handles for all extras)
+ */
+export type HandlerArgs<DS extends readonly ArgSpec[]> = {
+  [K in keyof DS]: DS[K] extends { rest: true }
+    ? DS[K] extends ArgSpec<infer T>
+      ? Arg<ValueOfType<T>>[]
+      : never
+    : DS[K] extends { optional: true }
+      ? DS[K] extends ArgSpec<infer T>
+        ? Arg<ValueOfType<T>> | undefined
+        : never
+      : DS[K] extends ArgSpec<infer T>
+        ? Arg<ValueOfType<T>>
+        : never;
+};
 
-export interface DirectiveSpec {
+export interface DirectiveSpec<DS extends readonly ArgSpec[] = readonly ArgSpec[]> {
   name: string;
-  args: ArgSpec[];
+  args: DS;
   required?: boolean;
   describe?: string;
-  handler: (args: Value[]) => void | Promise<void>;
+  handler: (args: HandlerArgs<DS>) => void | Promise<void>;
 }
 
-export interface FunctionSpec {
+export interface FunctionSpec<
+  DS extends readonly ArgSpec[] = readonly ArgSpec[],
+  R extends string = string,
+> {
   name: string;
-  args: ArgSpec[];
-  returns: Type | 'VOID';
+  args: DS;
+  returns: R;
   returnsEnumKey?: string;
   describe?: string;
-  handler: (args: HandlerArg[]) => Value | Promise<Value>;
+  handler: (args: HandlerArgs<DS>) => ValueOfType<R> | Promise<ValueOfType<R>>;
 }
 
-export interface VariableSpec {
+export interface VariableSpec<T extends string = string> {
   name: string;
-  type: Type;
+  type: T;
   enumKey?: string;
   describe?: string;
 }
@@ -140,9 +205,4 @@ export function valueType(v: Value): BuiltinType | 'VOID' | null {
   if (typeof v === 'boolean') return BUL;
   if (isEnumValue(v)) return ENUM;
   return null;
-}
-
-/** True for the value part of HandlerArg (not a thunk). */
-export function isThunk(v: HandlerArg): v is Thunk {
-  return typeof v === 'function';
 }
