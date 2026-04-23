@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>genby · minimal</title>
+</head>
+
+<body>
+
+    <h1>genby · minimal</h1>
+    <p>
+        a live, minimal use of the library: one custom function, an embedded
+        input with highlighting, and a run button.
+    </p>
+
+    <div id="host"></div>
+    <button id="run" type="button">run</button>
+    <pre id="out"></pre>
+
+    <script type="module">
+        import { Genby, NUM } from '../dist/index.js';
+
+        const machine = new Genby()
+            .addFunction({
+                name: 'DOUBLE',
+                args: [{ name: 'x', type: NUM }],
+                returns: NUM,
+                handler: ([x]) => Number(x) * 2,
+            })
+            .build();
+
+        const input = machine.inputDom();
+        input.setValue('answer = DOUBLE(21)\nRETURN("the answer is {answer}")');
+        document.getElementById('host').appendChild(input.element);
+
+        document.getElementById('run').addEventListener('click', async () => {
+            const out = document.getElementById('out');
+            try {
+                const result = await machine.execute(input.getValue());
+                out.textContent = String(result);
+            } catch (err) {
+                out.textContent = String(err?.message ?? err);
+            }
+        });
+    </script>
+
+</body>
+
+</html>
