@@ -156,6 +156,17 @@ class Checker {
       );
     } else {
       this.returnType = this.inferExpr(program.returnStmt.expr);
+      const expectedSpec = this.config.returnType;
+      if (expectedSpec) {
+        const expected = typeSpecToResolved(expectedSpec.type, expectedSpec.enumKey);
+        if (!matchesExpected(expected, this.returnType)) {
+          this.err(
+            program.returnStmt.expr.span,
+            `RETURN expects ${formatType(expected)}, got ${formatType(this.returnType)}`,
+            'type',
+          );
+        }
+      }
     }
   }
 

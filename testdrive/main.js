@@ -630,12 +630,26 @@ if (exampleSelect && exampleSelectTrigger && exampleSelectPopup) {
 
     document.addEventListener('mousedown', (e) => {
         if (exampleSelectPopup.hidden) return;
-        if (!exampleSelect.contains(e.target)) closeExamplePopup();
+        if (exampleSelect.contains(e.target)) return;
+        closeExamplePopup();
     });
 
     window.addEventListener('blur', () => closeExamplePopup());
     window.addEventListener('resize', () => closeExamplePopup());
-    window.addEventListener('scroll', () => closeExamplePopup(), true);
+    // Capture-phase scroll listener: closes the popup when the page (or any
+    // ancestor) scrolls and the popup would drift away. Must ignore scrolls
+    // originating inside the popup itself — otherwise dragging the scrollbar
+    // or wheel-scrolling the options dismisses the menu.
+    window.addEventListener(
+        'scroll',
+        (e) => {
+            if (exampleSelectPopup.hidden) return;
+            const t = e.target;
+            if (t instanceof Node && exampleSelectPopup.contains(t)) return;
+            closeExamplePopup();
+        },
+        true,
+    );
 }
 
 const initialExample = EXAMPLES[0];

@@ -8,6 +8,7 @@ import { STR, NUM, BUL, ENUM, ANY } from '../types.js';
 import { highlightToHtml } from './highlight.js';
 import {
   buildContext,
+  buildReturnSignature,
   computeSuggestions,
   getActiveArgSpec,
   resolveSignature,
@@ -228,12 +229,18 @@ export function createInputDom(machine: LangMachine): GenbyInput {
   function resolveIdentHint(ctx: AutocompleteContext): IdentHint | null {
     const name = ctx.fullWord;
     if (!name || !/^[a-zA-Z_]/.test(name)) return null;
-    // Skip directive tokens (`@name(` handled by sighint) and RETURN.
+    // Skip directive tokens (`@name(` handled by sighint).
     if (ctx.afterAt) return null;
-    if (name === RETURN) return null;
     // Only treat as identifier if lexer produced an IDENT token at this span
     // (guards against cursor being inside a string or comment).
     if (!state.identInfo.has(ctx.wordStart)) return null;
+
+    if (name === RETURN) {
+      return {
+        kind: 'signature',
+        sig: buildReturnSignature(machine.config, -1),
+      };
+    }
 
     const local = state.locals.get(name);
     if (local) {

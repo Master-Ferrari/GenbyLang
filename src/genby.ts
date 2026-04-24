@@ -2,7 +2,7 @@ import { lex } from './lexer.js';
 import { parse } from './parser.js';
 import { check } from './checker.js';
 import { runProgram, GenbyRuntimeError } from './interpreter.js';
-import type { EnumDef, LangConfig } from './config.js';
+import type { EnumDef, LangConfig, ReturnTypeSpec } from './config.js';
 import { BUILTIN_TYPE_NAMES, isBuiltinType } from './config.js';
 import { createInputDom, type GenbyInput } from './input-dom/index.js';
 import { generateMarkdownDocs, type DocsOptions } from './docs.js';
@@ -30,15 +30,21 @@ export type AddTypeOptions = TypeOptions;
 
 export type EnumValueInput = string | EnumValueSpec;
 
+/** Extra arguments for {@link Genby.setReturnType}. Mirrors `FunctionSpec.returnsEnumKey`. */
+export interface SetReturnTypeOptions {
+  enumKey?: string;
+}
+
 type ExternalInputs = Record<string, Value>;
 
-export class Genby<Vars extends ExternalInputs = {}> {
+export class Genby<Vars extends ExternalInputs = {}, Ret = Value> {
   private readonly directives = new Map<string, DirectiveSpec>();
   private readonly functions = new Map<string, FunctionSpec>();
   private readonly variables = new Map<string, VariableSpec>();
   private readonly enums = new Map<string, EnumDef>();
   private readonly types = new Map<string, TypeDef>();
   private readonly enumValueIndex = new Map<string, string>();
+  private returnType: ReturnTypeSpec | undefined;
 
   /**
    * Register a directive. Using a `const` generic on `DS` keeps the declared
@@ -69,7 +75,7 @@ export class Genby<Vars extends ExternalInputs = {}> {
 
   addVariable<const N extends string, const T extends Type>(
     spec: VariableSpec<T> & { name: N },
-  ): Genby<Vars & Record<N, ValueOfType<T>>> {
+  ): Genby<Vars & Record<N, ValueOfType<T>>, Ret> {
     this.assertNameFree(spec.name, 'variable');
     if (spec.type === 'ENUM' && !spec.enumKey) {
       throw new Error(
@@ -77,7 +83,7 @@ export class Genby<Vars extends ExternalInputs = {}> {
       );
     }
     this.variables.set(spec.name, spec as unknown as VariableSpec);
-    return this as unknown as Genby<Vars & Record<N, ValueOfType<T>>>;
+    return this as unknown as Genby<Vars & Record<N, ValueOfType<T>>, Ret>;
   }
 
   addEnum(
@@ -175,7 +181,46 @@ export class Genby<Vars extends ExternalInputs = {}> {
     return this.types.has(name);
   }
 
-  build(): LangMachine<Vars> {
+  /**
+   * Require the program's `RETURN(expression)` to evaluate to a specific type.
+   * Accepts a built-in tag (`STR`/`NUM`/`BUL`/`ENUM`/`ANY`) or any custom type
+   * registered via {@link Genby.addType}. For `ENUM` you must also pass
+   * `enumKey`. `VOID` is not allowed — `RETURN` always produces a value.
+   *
+   * The returned builder narrows the inferred return type of
+   * {@link LangMachine.execute}, so downstream TS code gets the right shape
+   * without extra casts. Omit this call to keep the default behaviour
+   * (any type is accepted, matches Genby 1.0 spec).
+   */
+  setReturnType<const T extends Type>(
+    type: T,
+    options: SetReturnTypeOptions = {},
+  ): Genby<Vars, ValueOfType<T>> {
+    if (typeof type !== 'string' || type.length === 0) {
+      throw new Error(`setReturnType: expected a type name, got '${String(type)}'`);
+    }
+    if (type === 'VOID') {
+      throw new Error(
+        `setReturnType: 'VOID' is not allowed — RETURN must produce a value`,
+      );
+    }
+    if (this.returnType) {
+      throw new Error(
+        `setReturnType: return type is already set to '${formatReturnTypeSpec(this.returnType)}'`,
+      );
+    }
+    if (type === 'ENUM' && !options.enumKey) {
+      throw new Error(
+        `setReturnType: 'ENUM' requires an 'enumKey' option`,
+      );
+    }
+    const spec: ReturnTypeSpec = { type };
+    if (options.enumKey !== undefined) spec.enumKey = options.enumKey;
+    this.returnType = spec;
+    return this as unknown as Genby<Vars, ValueOfType<T>>;
+  }
+
+  build(): LangMachine<Vars, Ret> {
     this.validateAllTypeReferences();
     const config: LangConfig = {
       directives: new Map(this.directives),
@@ -185,7 +230,8 @@ export class Genby<Vars extends ExternalInputs = {}> {
       types: new Map(this.types),
       enumValueIndex: new Map(this.enumValueIndex),
     };
-    return new LangMachine<Vars>(config);
+    if (this.returnType) config.returnType = { ...this.returnType };
+    return new LangMachine<Vars, Ret>(config);
   }
 
   private validateAllTypeReferences(): void {
@@ -235,6 +281,18 @@ export class Genby<Vars extends ExternalInputs = {}> {
         );
       }
     }
+    if (this.returnType) {
+      check(this.returnType.type, `Program RETURN type`);
+      if (
+        this.returnType.type === 'ENUM' &&
+        this.returnType.enumKey &&
+        !this.enums.has(this.returnType.enumKey)
+      ) {
+        throw new Error(
+          `Program RETURN type references unknown enum '${this.returnType.enumKey}'`,
+        );
+      }
+    }
   }
 
   private assertNameFree(name: string, kind: string): void {
@@ -255,7 +313,7 @@ export class Genby<Vars extends ExternalInputs = {}> {
   }
 }
 
-export class LangMachine<Vars extends ExternalInputs = {}> {
+export class LangMachine<Vars extends ExternalInputs = {}, Ret = Value> {
   constructor(readonly config: LangConfig) {}
 
   check(program: string): CheckResult {
@@ -268,7 +326,7 @@ export class LangMachine<Vars extends ExternalInputs = {}> {
     ...[inputs]: [keyof Vars] extends [never]
       ? [inputs?: ExternalInputs]
       : [inputs: Vars]
-  ): Promise<Value> {
+  ): Promise<Ret> {
     const providedInputs = (inputs ?? {}) as ExternalInputs;
     const { tokens, errors: lexErrs } = lex(program);
     const { program: ast, errors: parseErrs } = parse(tokens);
@@ -286,9 +344,9 @@ export class LangMachine<Vars extends ExternalInputs = {}> {
       );
     }
     try {
-      return await runProgram(ast, this.config, providedInputs, {
+      return (await runProgram(ast, this.config, providedInputs, {
         interpTypes: checkResult.interpTypes,
-      });
+      })) as Ret;
     } catch (err) {
       if (err instanceof GenbyRuntimeError) {
         throw Object.assign(new Error(err.message), {
@@ -315,4 +373,9 @@ export class LangMachine<Vars extends ExternalInputs = {}> {
     const { errors: checkErrs } = check(ast, this.config);
     return [...lexErrs, ...parseErrs, ...checkErrs];
   }
+}
+
+function formatReturnTypeSpec(spec: ReturnTypeSpec): string {
+  if (spec.type === 'ENUM') return `ENUM<${spec.enumKey ?? '?'}>`;
+  return spec.type;
 }

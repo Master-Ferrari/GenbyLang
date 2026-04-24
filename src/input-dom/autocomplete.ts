@@ -1,5 +1,5 @@
-import type { LangConfig } from '../config.js';
-import type { ArgSpec, FunctionSpec, DirectiveSpec } from '../types.js';
+import { RETURN, type LangConfig } from '../config.js';
+import { ANY, type ArgSpec, type FunctionSpec, type DirectiveSpec } from '../types.js';
 
 export interface Suggestion {
   label: string;
@@ -260,6 +260,9 @@ export function resolveSignature(
 ): SignatureInfo | null {
   const call = context.insideCall;
   if (!call) return null;
+  if (call.name === RETURN) {
+    return buildReturnSignature(config, call.argIndex);
+  }
   const fn = config.functions.get(call.name);
   if (fn) {
     return {
@@ -283,6 +286,38 @@ export function resolveSignature(
     };
   }
   return null;
+}
+
+/**
+ * Synthesize the signature hint for `RETURN(expression)`. The sole argument
+ * carries the type from `config.returnType`, or `ANY` when no contract is
+ * configured. Pass `rawIndex = -1` to render the hint without highlighting
+ * any slot (used for hover over the RETURN identifier itself).
+ */
+export function buildReturnSignature(
+  config: LangConfig,
+  rawIndex: number,
+): SignatureInfo {
+  const spec = config.returnType;
+  const type = spec?.type ?? ANY;
+  const arg: ArgSpec = {
+    name: 'expression',
+    type,
+    ...(spec?.enumKey ? { enumKey: spec.enumKey } : {}),
+    describe: spec
+      ? 'returned to the host; must match the configured return type.'
+      : 'returned to the host; any type is accepted.',
+  };
+  const args = [arg];
+  const activeIndex = rawIndex < 0 ? -1 : clampActiveIndex(args, rawIndex);
+  return {
+    kind: 'function',
+    name: RETURN,
+    args,
+    activeIndex,
+    returns: null,
+    describe: arg.describe,
+  };
 }
 
 function lookupCallable(

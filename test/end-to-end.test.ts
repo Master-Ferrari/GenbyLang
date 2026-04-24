@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Genby, STR, NUM, BUL, ENUM } from '../src/index.js';
+import { Genby, STR, NUM, BUL, ENUM, ANY } from '../src/index.js';
 
 function buildMachine() {
   const g = new Genby();
@@ -188,5 +188,125 @@ RETURN(out)
     expect(check.ok).toBe(true);
     const result = await m.execute(src, {});
     expect(result).toBe('yes');
+  });
+
+  describe('setReturnType', () => {
+    it('accepts a RETURN expression that matches the required type', async () => {
+      const g = new Genby().setReturnType(STR);
+      const m = g.build();
+      const src = 'RETURN("hello")';
+      const check = m.check(src);
+      expect(check.ok).toBe(true);
+      const result = await m.execute(src);
+      expect(result).toBe('hello');
+    });
+
+    it('rejects a RETURN expression with the wrong type', () => {
+      const g = new Genby().setReturnType(STR);
+      const m = g.build();
+      const check = m.check('RETURN(42)');
+      expect(check.ok).toBe(false);
+      expect(
+        check.errors.some(
+          (e) => e.kind === 'type' && /RETURN expects STR/.test(e.message),
+        ),
+      ).toBe(true);
+    });
+
+    it('supports ENUM with enumKey', async () => {
+      const g = new Genby()
+        .addEnum('MODE', ['FAST', 'SLOW'])
+        .setReturnType(ENUM, { enumKey: 'MODE' });
+      const m = g.build();
+      expect(m.check('RETURN(FAST)').ok).toBe(true);
+      const wrong = m.check('RETURN(1)');
+      expect(wrong.ok).toBe(false);
+      expect(
+        wrong.errors.some(
+          (e) => e.kind === 'type' && /RETURN expects ENUM<MODE>/.test(e.message),
+        ),
+      ).toBe(true);
+    });
+
+    it('rejects an ENUM return from a different enum key', () => {
+      const g = new Genby()
+        .addEnum('MODE', ['FAST', 'SLOW'])
+        .addEnum('STATE', ['ON', 'OFF'])
+        .setReturnType(ENUM, { enumKey: 'MODE' });
+      const m = g.build();
+      const res = m.check('RETURN(ON)');
+      expect(res.ok).toBe(false);
+      expect(
+        res.errors.some(
+          (e) => e.kind === 'type' && /ENUM<MODE>/.test(e.message) && /ENUM<STATE>/.test(e.message),
+        ),
+      ).toBe(true);
+    });
+
+    it('ANY required return type accepts anything', () => {
+      const g = new Genby().setReturnType(ANY);
+      const m = g.build();
+      expect(m.check('RETURN(1)').ok).toBe(true);
+      expect(m.check('RETURN("x")').ok).toBe(true);
+    });
+
+    it('supports custom types', async () => {
+      const g = new Genby()
+        .addType('BLOB', { stringify: (v) => `blob:${(v as { id: string }).id}` })
+        .addFunction({
+          name: 'MAKE_BLOB',
+          args: [{ name: 'id', type: STR }],
+          returns: 'BLOB',
+          handler: async ([id]) => ({ id: await id.calc() }),
+        })
+        .setReturnType('BLOB');
+      const m = g.build();
+      const ok = m.check('b = MAKE_BLOB("x")\nRETURN(b)');
+      expect(ok.ok).toBe(true);
+      const bad = m.check('RETURN("plain")');
+      expect(bad.ok).toBe(false);
+      expect(
+        bad.errors.some(
+          (e) => e.kind === 'type' && /RETURN expects BLOB/.test(e.message),
+        ),
+      ).toBe(true);
+      const result = (await m.execute('b = MAKE_BLOB("x")\nRETURN(b)')) as {
+        id: string;
+      };
+      expect(result.id).toBe('x');
+    });
+
+    it('throws on ENUM without enumKey', () => {
+      expect(() => new Genby().setReturnType(ENUM)).toThrow(
+        /requires an 'enumKey'/,
+      );
+    });
+
+    it('throws on VOID', () => {
+      expect(() => new Genby().setReturnType('VOID' as never)).toThrow(
+        /VOID/,
+      );
+    });
+
+    it('throws when set more than once', () => {
+      const g = new Genby().setReturnType(STR);
+      expect(() => g.setReturnType(NUM)).toThrow(/already set/);
+    });
+
+    it('throws at build() when referencing an unregistered type', () => {
+      const g = new Genby().setReturnType('GHOST');
+      expect(() => g.build()).toThrow(/Program RETURN type references unknown type 'GHOST'/);
+    });
+
+    it('throws at build() when referencing an unknown enum', () => {
+      const g = new Genby().setReturnType(ENUM, { enumKey: 'NOPE' });
+      expect(() => g.build()).toThrow(/unknown enum 'NOPE'/);
+    });
+
+    it('execute rejects mismatched return', async () => {
+      const g = new Genby().setReturnType(STR);
+      const m = g.build();
+      await expect(m.execute('RETURN(1)')).rejects.toThrow(/RETURN expects STR/);
+    });
   });
 });

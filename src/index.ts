@@ -3,7 +3,9 @@ export type {
   AddEnumOptions,
   AddTypeOptions,
   EnumValueInput,
+  SetReturnTypeOptions,
 } from './genby.js';
+export type { ReturnTypeSpec } from './config.js';
 export type { GenbyInput, Unsubscribe } from './input-dom/index.js';
 export { prettify } from './input-dom/index.js';
 export type { PrettifyOptions } from './input-dom/index.js';

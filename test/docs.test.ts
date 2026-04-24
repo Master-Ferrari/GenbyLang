@@ -47,8 +47,8 @@ function makeRichMachine() {
 describe('docs generator', () => {
   it('renders basic syntax section and all registered entities', () => {
     const md = makeRichMachine().docs();
-    expect(md).toMatch(/^# Language reference/);
-    expect(md).toContain('## Basic syntax');
+    expect(md).toMatch(/^# Script reference/);
+    expect(md).toContain('## Syntax reference');
     expect(md).toContain('RETURN');
     expect(md).toContain('## Directives');
     expect(md).toContain('`@NAME`');
@@ -80,7 +80,7 @@ describe('docs generator', () => {
   it('omits empty sections', () => {
     const g = new Genby();
     const md = generateMarkdownDocs(g.build());
-    expect(md).toContain('## Basic syntax');
+    expect(md).toContain('## Syntax reference');
     expect(md).not.toMatch(/^## Directives$/m);
     expect(md).not.toMatch(/^## Functions$/m);
     expect(md).not.toMatch(/^## Variables$/m);

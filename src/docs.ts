@@ -75,12 +75,16 @@ Startup settings. Put them at the very top of the script. They run once when the
 ${joinWithDivider(directives.map(renderDirective))}`);
   }
 
-  sections.push(renderBasicSyntax());
+  sections.push(renderBasicSyntax(machine));
 
   return sections.join('\n\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
 }
 
-function renderBasicSyntax(): string {
+function renderBasicSyntax(machine?: LangMachine): string {
+  const returnType = machine?.config.returnType;
+  const terminationNote = returnType
+    ? `Must produce a value of type \`${formatType(returnType.type, returnType.enumKey)}\`.`
+    : `Any type is allowed.`;
   return `## Syntax reference
 
 A short cheat sheet for writing scripts. A script is a list of assignments and calls, and it must end with \`RETURN(expression)\`. Optional directives go at the top.
@@ -99,7 +103,7 @@ A short cheat sheet for writing scripts. A script is a list of assignments and c
 
 **Comments.** \`// to the end of the line\`. 
 
-**Termination.** \`RETURN(expression)\` - required as the last line of the script. Any type is allowed.
+**Termination.** \`RETURN(expression)\` - required as the last line of the script. ${terminationNote}
 `;
 }
 

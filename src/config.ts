@@ -25,6 +25,20 @@ export interface LangConfig {
   types: Map<string, TypeDef>;
   /** enumValueName -> enumKey. Used for identifier resolution and reserved-name checks. */
   enumValueIndex: Map<string, string>;
+  /**
+   * Optional contract for the program's `RETURN(expression)`. When set, the
+   * checker requires the inferred type of the return expression to match
+   * `type` (with `enumKey` when `type === 'ENUM'`). `ANY` disables the check
+   * on either side (expected or actual). Left `undefined` means any type is
+   * accepted, preserving the default Genby 1.0 behaviour.
+   */
+  returnType?: ReturnTypeSpec;
+}
+
+/** Contract for the program's `RETURN` expression — see {@link LangConfig.returnType}. */
+export interface ReturnTypeSpec {
+  type: Type;
+  enumKey?: string;
 }
 
 export const RETURN = 'RETURN';

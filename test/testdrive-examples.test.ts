@@ -36,14 +36,25 @@ describe('testdrive examples', () => {
       }
       try {
         const { result } = await runExample(ex);
-        expect(
-          typeof result,
-          `example '${ex.id}' should return a string`,
-        ).toBe('string');
-        expect(
-          String(result).length,
-          `example '${ex.id}' should return non-empty text`,
-        ).toBeGreaterThan(0);
+        if (ex.id === 'return-type') {
+          expect(
+            result,
+            `example '${ex.id}' should return a Verdict struct`,
+          ).toMatchObject({
+            level: expect.any(String),
+            icon: expect.any(String),
+            message: expect.any(String),
+          });
+        } else {
+          expect(
+            typeof result,
+            `example '${ex.id}' should return a string`,
+          ).toBe('string');
+          expect(
+            String(result).length,
+            `example '${ex.id}' should return non-empty text`,
+          ).toBeGreaterThan(0);
+        }
       } finally {
         restoreFetch?.();
       }

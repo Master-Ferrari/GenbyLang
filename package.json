@@ -1,6 +1,6 @@
 {
   "name": "genby",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "author": "Master-Ferrari",
   "license": "MIT",
   "description": "Embeddable scripting language for building strings (LLM prompts, etc.)",

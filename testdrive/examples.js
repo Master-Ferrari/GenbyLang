@@ -10,6 +10,8 @@
 //   7. string helpers and composition
 //   8. user-defined functions and recursion inside genby
 //   9. directives + interesting async functions (fetch + SubtleCrypto)
+//  10. setReturnType: lock the program's RETURN to a specific type
+//      (demonstrated with a custom struct + CASE)
 //
 // each example only introduces features on top of the previous one,
 // so reading them in order acts as a hands-on walkthrough.
@@ -597,6 +599,95 @@ sha-256 digest:
 
 short id: {SHORT(hash, 12)}")`;
 
+// =================================================================
+// 10. setReturnType — lock the program's RETURN to a specific type
+// =================================================================
+
+const RETURN_TYPE_CONFIG = `// machine.setReturnType(type, { enumKey? }) makes the program's final
+// RETURN(...) expression part of the host contract. the checker rejects
+// any other type with "RETURN expects <T>, got <U>", and the inferred
+// TS type of machine.execute(...) narrows to Promise<ValueOfType<T>>.
+//
+// to make the demo non-trivial we lock the return to a custom struct
+// (addType + a constructor function) and pick one using CASE.
+
+import { Genby, STR, NUM, ENUM, ANY } from 'genby';
+
+const machine = new Genby();
+
+machine.addType('Verdict', {
+    describe: 'severity level + icon + message',
+    stringify: (v) => '[' + v.level + '] ' + v.icon + '  ' + v.message,
+});
+
+machine.addEnum('Grade', ['A', 'B', 'C', 'D', 'F']);
+machine.addVariable({ name: 'GRADE', type: ENUM, enumKey: 'Grade' });
+machine.addVariable({ name: 'SCORE', type: NUM });
+
+// constructor for our custom type
+machine.addFunction({
+    name: 'VERDICT',
+    args: [
+        { name: 'level', type: STR },
+        { name: 'icon', type: STR },
+        { name: 'message', type: STR },
+    ],
+    returns: 'Verdict',
+    handler: async ([level, icon, message]) => ({
+        level: await level.calc(),
+        icon: await icon.calc(),
+        message: await message.calc(),
+    }),
+});
+
+// pins an ANY value (e.g. the result of CASE) to Verdict so it can be
+// assigned to a local — same pattern as NUM(AT(...)) in the arrays example.
+machine.addFunction({
+    name: 'AS_VERDICT',
+    args: [{ name: 'value', type: ANY }],
+    returns: 'Verdict',
+    handler: async ([value]) => await value.calc(),
+});
+
+machine.addPreset('CASE');
+machine.addPreset('STR');
+
+// >>> the star of this example <<<
+// RETURN(...) must evaluate to a Verdict. try RETURN("hello") or
+// RETURN(42) in the program on the right — the checker will complain
+// with "RETURN expects Verdict, got STR/NUM" before the program even runs.
+machine.setReturnType('Verdict');
+
+const built = machine.build();
+const originalExecute = built.execute.bind(built);
+built.execute = (program, inputs = {}) =>
+    originalExecute(program, {
+        GRADE: { __enum: true, enumKey: 'Grade', name: 'B' },
+        SCORE: 87,
+        ...inputs,
+    });
+
+return built;
+`;
+
+const RETURN_TYPE_PROGRAM = `// the host locked RETURN to Verdict via setReturnType('Verdict'), so the
+// last line must produce a Verdict. everything above just prepares one.
+
+// CASE picks one branch lazily; AS_VERDICT pins the ANY result to Verdict.
+verdict = AS_VERDICT(CASE(GRADE,
+  A, VERDICT("excellent", "A+", "top of the class"),
+  B, VERDICT("solid",     "OK", "nice work"),
+  C, VERDICT("meh",       "~~", "needs some polish"),
+  D, VERDICT("risky",     "!!", "worrying"),
+  F, VERDICT("failed",    "XX", "catastrophic"),
+  VERDICT("unknown", "??", "no grade provided")))
+
+// interpolating a Verdict uses the stringify hook from addType.
+banner = "grade {STR(GRADE)} (score {SCORE}): {verdict}"
+
+// swap 'verdict' for 'banner' (a STR) to see the checker reject it.
+RETURN(verdict)`;
+
 // -----------------------------------------------------------------
 // EXAMPLES — ordered list shown in the dropdown. the first one is the
 // default that loads on page init. each label doubles as a chapter
@@ -657,5 +748,11 @@ export const EXAMPLES = [
         label: '9 · directives & async functions',
         config: ASYNC_CONFIG,
         program: ASYNC_PROGRAM,
+    },
+    {
+        id: 'return-type',
+        label: '10 · setReturnType: lock the program output',
+        config: RETURN_TYPE_CONFIG,
+        program: RETURN_TYPE_PROGRAM,
     },
 ];
