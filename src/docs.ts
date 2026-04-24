@@ -16,7 +16,7 @@ export interface DocsOptions {
   intro?: string;
 }
 
-const DEFAULT_INTRO = `This page describes the script tools available in this project: commands, values, and startup settings. Use it as a quick reference while writing your staff.`;
+const DEFAULT_INTRO = `This page lists what you can use inside your scripts - commands, variables, and startup settings. Keep it handy while writing your stuff.`;
 
 export function generateMarkdownDocs(
   machine: LangMachine,
@@ -99,7 +99,7 @@ A short cheat sheet for writing scripts. A script is a list of assignments and c
 
 **Comments.** \`// to the end of the line\`. 
 
-**Termination.** \`RETURN(expression)\` — required as the last line of the script. Any type is allowed.
+**Termination.** \`RETURN(expression)\` - required as the last line of the script. Any type is allowed.
 `;
 }
 
@@ -130,7 +130,7 @@ function renderVariablesTable(variables: VariableSpec[]): string {
   const rows = variables
     .map(
       (v) =>
-        `| \`${v.name}\` | \`${formatType(v.type, v.enumKey)}\` | ${escapeCell(v.describe ?? '—')} |`,
+        `| \`${v.name}\` | \`${formatType(v.type, v.enumKey)}\` | ${escapeCell(v.describe ?? '-')} |`,
     )
     .join('\n');
   return `| Name | Type | Description |
@@ -142,7 +142,7 @@ function renderTypesTable(types: TypeDef[]): string {
   const rows = types
     .map(
       (t) =>
-        `| \`${t.name}\` | ${escapeCell(t.describe ?? '—')} |`,
+        `| \`${t.name}\` | ${escapeCell(t.describe ?? '-')} |`,
     )
     .join('\n');
   return `| Name | Description |
@@ -157,7 +157,7 @@ function renderEnum(e: EnumDef): string {
     ? `| Value | Description |
 | --- | --- |
 ${e.values
-  .map((v) => `| \`${v.name}\` | ${escapeCell(v.describe ?? '—')} |`)
+  .map((v) => `| \`${v.name}\` | ${escapeCell(v.describe ?? '-')} |`)
   .join('\n')}`
     : e.values.map((v) => `\`${v.name}\``).join(', ');
   return `### \`${e.key}\`
@@ -198,7 +198,7 @@ function renderArgsList(args: readonly ArgSpec[]): string {
       if (a.rest) tags.push('variadic');
       if (a.optional) tags.push('optional');
       const tagStr = tags.length ? ` _(${tags.join(', ')})_` : '';
-      const desc = a.describe ? ` — ${a.describe.trim()}` : '';
+      const desc = a.describe ? ` - ${a.describe.trim()}` : '';
       return `- \`${a.name}\`: \`${t}\`${tagStr}${desc}`;
     })
     .join('\n');
