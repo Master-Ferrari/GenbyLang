@@ -117,7 +117,7 @@
         }
 
         .page {
-            max-width: 820px;
+            max-width: 800px;
             min-width: 600px;   
             margin: 0 auto;
             display: grid;
@@ -216,7 +216,7 @@
             color: var(--text-soft);
             font-size: var(--fs-body);
             line-height: var(--lh-body);
-            max-width: 720px;
+            /* max-width: 720px; */
         }
 
         .hero-desc .hl {
@@ -730,7 +730,7 @@
         }
 
         .meta {
-            color: var(--text-dim);
+            color: var(--text-muted);
             font-size: var(--fs-xs);
             letter-spacing: var(--ls-meta);
         }
@@ -1035,7 +1035,7 @@
                         dependency <span class="val">free</span></span>
             </div>
             <p class="hero-desc">
-                <span class="hl"> <span style="font-size: 16px;">//</span> genby</span> is a js-executed language built to stay fully
+                <span class="hl"> <span style="font-size: 16px;">//</span> genby</span> is a js-executed language built to stay<br> fully
                 customizable , typed , and non-coder friendly<br>
             </p>
             <p class="hero-desc" style="margin-top: 16px;">.. it's .. like lua , but yet simpler<br>
@@ -1045,6 +1045,8 @@
                 function</span> , so instead of block-heavy structures it leans on nested calls like
                 <code>a = b ( c ( d ) e ( ) , f )</code><br>
                 and by default there is only one function - RETURN . so you may configure lang from scratch <br> 
+            </p>
+            <p class="hero-desc" style="margin-top: 16px;">
                 the whole system is packaged as a single class where you define your own
                 api , including control flow such as <span class="hl">loops</span> and <span class="hl">branching</span> ,
                 and that same class can also export an input field with <span class="hl">highlighting</span> and completions plus
