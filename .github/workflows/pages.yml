@@ -39,15 +39,8 @@ jobs:
       - name: Stage site
         run: |
           mkdir -p _site
-          cp -r testdrive _site/testdrive
+          cp -r testdrive/* _site/
           cp -r dist _site/dist
-          cat > _site/index.html <<'EOF'
-          <!doctype html>
-          <meta charset="utf-8">
-          <title>genby</title>
-          <meta http-equiv="refresh" content="0; url=./testdrive/">
-          <link rel="canonical" href="./testdrive/">
-          EOF
 
       - uses: actions/configure-pages@v5
 
