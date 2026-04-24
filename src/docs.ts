@@ -10,20 +10,20 @@ import type {
 } from './types.js';
 
 export interface DocsOptions {
-  /** Top-level title. Default: 'Language reference'. */
+  /** Top-level title. Default: 'Script reference'. */
   title?: string;
   /** Optional paragraph shown right under the title. */
   intro?: string;
 }
 
-const DEFAULT_INTRO = `This build of the language ships with a specific set of functions, variables, and other hooks — that's what's documented below. The language itself is just glue: a tiny scripting layer for stitching their outputs together. A short syntax reference is at the very end for when you need it.`;
+const DEFAULT_INTRO = `This page describes the script tools available in this project: commands, values, and startup settings. Use it as a quick reference while writing your staff.`;
 
 export function generateMarkdownDocs(
   machine: LangMachine,
   options: DocsOptions = {},
 ): string {
   const { config } = machine;
-  const title = options.title ?? 'Language reference';
+  const title = options.title ?? 'Script reference';
   const intro = (options.intro ?? DEFAULT_INTRO).trim();
 
   const sections: string[] = [];
@@ -34,16 +34,16 @@ export function generateMarkdownDocs(
   if (functions.length > 0) {
     sections.push(`## Functions
 
-The building blocks of every program. Each function is external and asynchronous — the engine awaits the result for you. Call with \`NAME(arg1, arg2, ...)\`; assign the result to a variable or drop it into an expression. Void functions are written as standalone statements and don't produce a value.
+Main commands available in this project. Use \`NAME(arg1, arg2, ...)\`. You can save the result to a variable or use it right away.
 
-${functions.map(renderFunction).join('\n')}`);
+${joinWithDivider(functions.map(renderFunction))}`);
   }
 
   const variables = [...config.variables.values()];
   if (variables.length > 0) {
     sections.push(`## Variables
 
-Values supplied from the outside when the program runs. Use them like any other identifier.
+Ready-made values provided from outside. You can use them in expressions just like normal names.
 
 ${renderVariablesTable(variables)}`);
   }
@@ -52,16 +52,16 @@ ${renderVariablesTable(variables)}`);
   if (enums.length > 0) {
     sections.push(`## Enums
 
-Named constants. Write the name directly in code; when interpolated into a string it becomes the text of that name.
+Fixed options. Write the name directly in code.
 
-${enums.map(renderEnum).join('\n')}`);
+${joinWithDivider(enums.map(renderEnum))}`);
   }
 
   const types = [...config.types.values()];
   if (types.length > 0) {
     sections.push(`## Types
 
-Custom types produced and consumed by the functions above. You never write their literals directly — values flow through variables, arguments, and return types, and render via the type's \`stringify\` hook when interpolated.
+Special value formats used by some commands. If a command expects a specific type in an argument, pass a variable or value of that same type.
 
 ${renderTypesTable(types)}`);
   }
@@ -70,9 +70,9 @@ ${renderTypesTable(types)}`);
   if (directives.length > 0) {
     sections.push(`## Directives
 
-One-off configuration written at the very top of the program and executed once on load. Arguments must be constants or enum values — nothing that depends on runtime state.
+Startup settings. Put them at the very top of the script. They run once when the script starts.
 
-${directives.map(renderDirective).join('\n')}`);
+${joinWithDivider(directives.map(renderDirective))}`);
   }
 
   sections.push(renderBasicSyntax());
@@ -83,23 +83,23 @@ ${directives.map(renderDirective).join('\n')}`);
 function renderBasicSyntax(): string {
   return `## Syntax reference
 
-A compact cheat sheet for the glue around the functions above. A program is a list of assignments and calls ending with \`RETURN(expression)\`; optional directives sit at the very top.
+A short cheat sheet for writing scripts. A script is a list of assignments and calls, and it must end with \`RETURN(expression)\`. Optional directives go at the top.
 
-**Literals.** Double-quoted strings (\`"hello"\`, multi-line OK), numbers (\`42\`, \`3.14\`, \`-1\`). Escapes: \`\\"\`, \`\\\\\`, \`\\{\`, \`\\n\`, \`\\t\`. There are no boolean literals — \`BUL\` values only come out of comparisons.
+**Literals.** Text in double quotes (\`"hello"\`, can be multi-line) and numbers (\`42\`, \`3.14\`, \`-1\`). Escapes: \`\\"\`, \`\\\\\`, \`\\{\`, \`\\n\`, \`\\t\`. Boolean values (\`BUL\`) are produced by comparisons.
 
-**Interpolation.** \`"hello {name}"\` — anything inside \`{}\` is evaluated and spliced in. Custom-typed values render via their \`stringify\` hook.
+**Interpolation.** \`"hello {name}"\` inserts calculated values into text.
 
-**Built-in type tags.** \`STR\`, \`NUM\`, \`BUL\`, \`ENUM\`, \`ANY\`. \`ANY\` in an argument slot accepts a value of any type.
+**Built-in type tags.** \`STR\`, \`NUM\`, \`BUL\`, \`ENUM\`, \`ANY\`. \`ANY\` means "any value type".
 
 **Operators.** \`+\` (concat for \`STR\`, addition for \`NUM\`); \`-\`, \`*\`, \`/\` on \`NUM\`; \`==\`, \`!=\` between values of the same type; \`<\`, \`>\`, \`<=\`, \`>=\` on \`NUM\`. Division by zero is a runtime error.
 
-**Assignment.** \`name = expression\`. Reassign freely, but the type is fixed by the first assignment. Reserved names (functions, directives, external variables, enum values) cannot be assigned to.
+**Assignment.** \`name = expression\`. You can update a variable, but its type is set by the first value. Reserved names (functions, directives, external variables, enum values) cannot be assigned to.
 
-**Calls.** \`FN(arg1, arg2, ...)\`. Always implicitly asynchronous — no \`await\` needed. Void functions are standalone statements and produce no value.
+**Calls.** \`FN(arg1, arg2, ...)\`. Functions with \`VOID\` return type are standalone actions and do not produce a value.
 
-**Comments.** \`// to the end of the line\`. No block comment form.
+**Comments.** \`// to the end of the line\`. 
 
-**Termination.** \`RETURN(expression)\` — required, exactly once, as the last line. Any type is allowed.
+**Termination.** \`RETURN(expression)\` — required as the last line of the script. Any type is allowed.
 `;
 }
 
@@ -108,22 +108,22 @@ function renderDirective(d: DirectiveSpec): string {
   const describe = d.describe ? `\n${d.describe.trim()}\n` : '';
   const args = d.args.length > 0 ? `\n${renderArgsList(d.args)}\n` : '';
   return `### \`@${d.name}\`${tag}
-
+${describe}
 \`\`\`
 @${d.name}${formatArgsList(d.args)}
 \`\`\`
-${describe}${args}`;
+${args}`;
 }
 
 function renderFunction(f: FunctionSpec): string {
   const describe = f.describe ? `\n${f.describe.trim()}\n` : '';
   const args = f.args.length > 0 ? `\n${renderArgsList(f.args)}\n` : '';
   return `### \`${f.name}\`
-
+${describe}
 \`\`\`
 ${f.name}${formatArgsList(f.args)}${formatReturn(f)}
 \`\`\`
-${describe}${args}`;
+${args}`;
 }
 
 function renderVariablesTable(variables: VariableSpec[]): string {
@@ -206,4 +206,8 @@ function renderArgsList(args: readonly ArgSpec[]): string {
 
 function escapeCell(s: string): string {
   return s.replace(/\r?\n+/g, ' ').replace(/\|/g, '\\|').trim();
+}
+
+function joinWithDivider(blocks: string[]): string {
+  return blocks.join('\n\n---\n\n');
 }

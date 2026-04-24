@@ -3,12 +3,13 @@
 // to most advanced. each entry is a pair of (config, program):
 //   1. variables and string interpolation (empty language)
 //   2. your first custom functions with addFunction
-//   3. host-provided custom variables
-//   4. enums: registering, using as args, returning from handlers
-//   5. string helpers and composition
-//   6. arrays and loops from presets
-//   7. user-defined functions and recursion inside genby
-//   8. directives + interesting async functions (fetch + SubtleCrypto)
+//   3. presets in action: arrays, loops, and other
+//   4. IF preset: ternary style, block style, hybrid style
+//   5. host-provided custom variables
+//   6. enums: registering, using as args, returning from handlers
+//   7. string helpers and composition
+//   8. user-defined functions and recursion inside genby
+//   9. directives + interesting async functions (fetch + SubtleCrypto)
 //
 // each example only introduces features on top of the previous one,
 // so reading them in order acts as a hands-on walkthrough.
@@ -95,32 +96,7 @@ machine.addFunction({
     handler: async ([value]) => Math.sqrt(Math.max(0, Number(await value.calc()))),
 });
 
-machine.addFunction({
-    name: 'NOW',
-    describe: 'current system timestamp (Date.now)',
-    args: [],
-    returns: NUM,
-    handler: async () => Date.now(),
-});
-
-machine.addFunction({
-    name: 'DRIFT',
-    describe: 'evaluates one argument twice and returns second - first',
-    args: [{ name: 'value', type: NUM }],
-    returns: NUM,
-    handler: async ([value]) => {
-        const first = Number(await value.calc());
-        const second = Number(await value.calc());
-        return second - first;
-    },
-});
-
-const built = machine.build();
-const originalExecute = built.execute.bind(built);
-built.execute = (program, inputs = {}) =>
-    originalExecute(program, { NOW_MS: Date.now(), ...inputs });
-
-return built;
+return machine;
 `;
 
 const CUSTOM_PROGRAM = `// everything is a function call — calls nest freely: SQRT(ADD(...)) etc.
@@ -128,75 +104,153 @@ area  = MUL(8, 9)
 cube  = POW(3, 3)
 hypot = SQRT(ADD(POW(3, 2), POW(4, 2)))
 total = ADD(area, cube)
-drift  = DRIFT(NOW())
 
 RETURN("area  = {area}
 cube  = {cube}
 hypot = {hypot}
-total = {total}
-drift(recomputed NOW) = {drift}")`;
+total = {total}")`;
 
 // =================================================================
-// 3. custom variables — host-provided values via addVariable
+// 4. IF preset — ternary, language element, hybrid
+// =================================================================
+
+const IF_PRESET_CONFIG = `import { Genby, NUM } from 'genby';
+
+const machine = new Genby();
+machine.addPreset('IF');
+machine.addPreset('STR');
+machine.addPreset('NUM');
+
+machine.addFunction({
+    name: 'ADD',
+    describe: 'sum of two numbers',
+    args: [{ name: 'a', type: NUM }, { name: 'b', type: NUM }],
+    returns: NUM,
+    handler: async ([a, b]) => Number(await a.calc()) + Number(await b.calc()),
+});
+
+machine.addFunction({
+    name: 'MUL',
+    describe: 'product of two numbers',
+    args: [{ name: 'a', type: NUM }, { name: 'b', type: NUM }],
+    returns: NUM,
+    handler: async ([a, b]) => Number(await a.calc()) * Number(await b.calc()),
+});
+
+return machine;
+`;
+
+const IF_PRESET_PROGRAM = `n = 6
+
+// 1) IF as a ternary-like expression
+tier = STR(IF(n > 5, "big", "small"))
+
+// 2) IF as a language element (each branch runs several calls)
+IF(n > 5, (
+  x1 = ADD(MUL(n, 2), ADD(3, 1))
+  y1 = MUL(ADD(n, 1), ADD(2, 2))
+), (
+  x1 = ADD(MUL(n, 3), ADD(1, 1))
+  y1 = MUL(ADD(n, 2), ADD(1, 2))
+))
+
+// 3) hybrid: IF block computes and returns a value into a variable
+score = NUM(IF(n > 5, (
+  x2 = ADD(MUL(n, 2), ADD(10, 5))
+  y2 = MUL(ADD(n, 1), ADD(2, 3))
+  ADD(x2, y2)
+), (
+  x2 = ADD(MUL(n, 1), ADD(8, 2))
+  y2 = MUL(ADD(n, 2), ADD(1, 4))
+  ADD(x2, y2)
+)))
+
+RETURN("tier={tier}
+x1={x1}
+y1={y1}
+score={score}")`;
+
+// =================================================================
+// 5. custom variables — host-provided values via addVariable
 // =================================================================
 
 const HOST_VARS_CONFIG = `// addVariable declares externally provided values.
 // the program can read them like ordinary locals, but the host must
 // inject them through execute(program, inputs).
 
-import { Genby, NUM } from 'genby';
+import { Genby, STR, NUM, BUL } from 'genby';
 
 const machine = new Genby();
 
 machine.addVariable({
-    name: 'NOW_MS',
+    name: 'USER_NAME',
+    type: STR,
+    describe: 'name of the customer we build a quote for',
+});
+
+machine.addVariable({
+    name: 'PLAN',
+    type: STR,
+    describe: 'plan name selected by the customer',
+});
+
+machine.addVariable({
+    name: 'SEATS',
     type: NUM,
-    describe: 'system timestamp in milliseconds (injected by the host)',
+    describe: 'number of seats in the team',
 });
 
-machine.addFunction({
-    name: 'DRIFT',
-    describe: 'evaluates one argument twice and returns second - first',
-    args: [{ name: 'value', type: NUM }],
-    returns: NUM,
-    handler: async ([value]) => {
-        const first = Number(await value.calc());
-        const second = Number(await value.calc());
-        return second - first;
-    },
+machine.addVariable({
+    name: 'PRICE_PER_SEAT',
+    type: NUM,
+    describe: 'base monthly price per seat',
 });
 
-machine.addFunction({
-    name: 'NOW',
-    describe: 'current system timestamp (Date.now)',
-    args: [],
-    returns: NUM,
-    handler: async () => Date.now(),
+machine.addVariable({
+    name: 'DISCOUNT_PCT',
+    type: NUM,
+    describe: 'host-calculated discount percentage',
+});
+
+machine.addVariable({
+    name: 'EARLY_BIRD',
+    type: BUL,
+    describe: 'whether the discount came from an early-bird campaign',
 });
 
 const built = machine.build();
 const originalExecute = built.execute.bind(built);
 built.execute = (program, inputs = {}) =>
-    originalExecute(program, { NOW_MS: Date.now(), ...inputs });
+    originalExecute(program, {
+        USER_NAME: 'Ada',
+        PLAN: 'Team',
+        SEATS: 12,
+        PRICE_PER_SEAT: 19,
+        DISCOUNT_PCT: 15,
+        EARLY_BIRD: true,
+        ...inputs,
+    });
 
 return built;
 `;
 
-const HOST_VARS_PROGRAM = `// NOW_MS is injected once by the host, so its value is stable.
-now = NOW_MS
+const HOST_VARS_PROGRAM = `// all these values come from execute(program, inputs).
+base     = SEATS * PRICE_PER_SEAT
+discount = base * DISCOUNT_PCT / 100
+total    = base - discount
+big_team = SEATS >= 10
 
-// DRIFT calls calc() twice:
-// - NOW_MS stays fixed for this run -> usually 0
-// - NOW() runs twice -> usually > 0
-stable = DRIFT(NOW_MS + 1)
-live   = DRIFT(NOW())
-
-RETURN("now   = {now}
-drift(stable source) = {stable}
-drift(recomputed)    = {live}")`;
+RETURN("quote for {USER_NAME} ({PLAN}):
+seats            = {SEATS}
+price / seat     = {PRICE_PER_SEAT}
+base             = {base}
+discount ({DISCOUNT_PCT}%) = -{discount}
+total            = {total}
+big team         = {big_team}
+early bird       = {EARLY_BIRD}")`;
 
 // =================================================================
-// 4. enums — named value sets you can pass to handlers
+// 6. enums — named value sets you can pass to handlers
 // =================================================================
 
 const ENUMS_CONFIG = `// machine.addEnum(key, values) registers a set of symbolic names. those
@@ -268,7 +322,7 @@ GREEN = {green_hex}  ( mood : {MOOD_OF(GREEN)} )
 BLUE  = {blue_hex}  ( mood : {mood_blue} )")`;
 
 // =================================================================
-// 5. strings — composing your own string helpers
+// 7. strings — composing your own string helpers
 // =================================================================
 
 const STRINGS_CONFIG = `// a handful of string helpers. they all share the same pattern:
@@ -344,7 +398,7 @@ RETURN("{line}
 length = {LEN(greet)}  ·  lower = {LOWER(banner)}")`;
 
 // =================================================================
-// 6. arrays & loops — using bundled presets
+// 3. presets in action — arrays, loops, and other
 // =================================================================
 
 const ARRAYS_CONFIG = `// machine.addPreset(name) registers one ready-made function under the
@@ -400,7 +454,7 @@ RETURN("squares (size = {SIZE(nums)}):
 words reversed: {reversed}")`;
 
 // =================================================================
-// 7. user-defined functions & recursion inside genby
+// 8. user-defined functions & recursion inside genby
 // =================================================================
 
 const RECURSION_CONFIG = `// user functions are written directly in genby — see the program
@@ -447,7 +501,7 @@ fib(10)   = {fib(10)}
 1+2+...+10 = {sumto(10)}")`;
 
 // =================================================================
-// 8. directives + interesting async functions (fetch + SHA-256)
+// 9. directives + interesting async functions (fetch + SHA-256)
 // =================================================================
 
 const ASYNC_CONFIG = `// directives are compile-time knobs written as @NAME(...) at the very
@@ -563,38 +617,44 @@ export const EXAMPLES = [
         program: CUSTOM_PROGRAM,
     },
     {
+        id: 'presets',
+        label: '3 · presets: arrays, loops, and other',
+        config: ARRAYS_CONFIG,
+        program: ARRAYS_PROGRAM,
+    },
+    {
+        id: 'if-preset',
+        label: '4 · IF preset: ternary, block, hybrid',
+        config: IF_PRESET_CONFIG,
+        program: IF_PRESET_PROGRAM,
+    },
+    {
         id: 'host-vars',
-        label: '3 · custom variables from host',
+        label: '5 · custom variables from host',
         config: HOST_VARS_CONFIG,
         program: HOST_VARS_PROGRAM,
     },
     {
         id: 'enums',
-        label: '4 · enums — named values as function args',
+        label: '6 · enums — named values as function args',
         config: ENUMS_CONFIG,
         program: ENUMS_PROGRAM,
     },
     {
         id: 'strings',
-        label: '5 · working with strings',
+        label: '7 · working with strings',
         config: STRINGS_CONFIG,
         program: STRINGS_PROGRAM,
     },
     {
-        id: 'arrays',
-        label: '6 · arrays & loops from presets',
-        config: ARRAYS_CONFIG,
-        program: ARRAYS_PROGRAM,
-    },
-    {
         id: 'recursion',
-        label: '7 · user functions & recursion inside genby',
+        label: '8 · user functions & recursion inside genby',
         config: RECURSION_CONFIG,
         program: RECURSION_PROGRAM,
     },
     {
         id: 'async',
-        label: '8 · directives & async functions',
+        label: '9 · directives & async functions',
         config: ASYNC_CONFIG,
         program: ASYNC_PROGRAM,
     },

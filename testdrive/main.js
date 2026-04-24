@@ -214,6 +214,13 @@ function renderMarkdown(src) {
             continue;
         }
 
+        // horizontal rule
+        if (/^\s*-{3,}\s*$/.test(line)) {
+            out.push('<hr />');
+            i++;
+            continue;
+        }
+
         // table: header | ... followed by separator row
         if (line.includes('|') && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
             const head = splitRow(line);
@@ -252,7 +259,8 @@ function renderMarkdown(src) {
             lines[i].trim() !== '' &&
             !/^(#{1,6})\s+/.test(lines[i]) &&
             !/^```/.test(lines[i]) &&
-            !/^\s*[-*]\s+/.test(lines[i])
+            !/^\s*[-*]\s+/.test(lines[i]) &&
+            !/^\s*-{3,}\s*$/.test(lines[i])
         ) {
             para.push(lines[i]);
             i++;

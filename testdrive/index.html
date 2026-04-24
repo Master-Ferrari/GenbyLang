@@ -154,7 +154,7 @@
         }
 
         .install-btn:hover {
-            border-color: var(--border-hi);
+            border-color: var(--border-in);
             background: var(--bg-btn-hover);
         }
 
@@ -333,6 +333,15 @@
             z-index: 1;
         }
 
+        .code-highlight code {
+            font-family: inherit;
+            font-size: inherit;
+            line-height: inherit;
+            letter-spacing: inherit;
+            white-space: inherit;
+            tab-size: inherit;
+        }
+
         .code-input {
             position: relative;
             display: block;
@@ -491,7 +500,7 @@
             font-size: var(--fs-xs);
             color: var(--text-muted);
             letter-spacing: var(--ls-meta);
-            text-transform: uppercase;
+            /* text-transform: uppercase; */
         }
 
         /* custom dropdown */
@@ -524,7 +533,7 @@
         }
 
         .example-select__trigger:hover {
-            border-color: var(--border-hi);
+            border-color: var(--border-in);
             background-color: var(--bg-btn-hover);
         }
 
@@ -638,7 +647,7 @@
         }
 
         .btn:hover {
-            border-color: var(--border-hi);
+            border-color: var(--border-in);
             background: var(--bg-btn-hover);
         }
 
@@ -663,7 +672,7 @@
         }
 
         .btn-primary:hover {
-            border-color: var(--accent-a60);
+            border-color: var(--accent-a35);
             background: var(--bg-btn-primary-hover);
         }
 
@@ -743,6 +752,7 @@
             padding: 6px 14px;
             font-size: var(--fs-xs);
             color: var(--text-muted);
+            background: var(--bg-btn);
             display: flex;
             align-items: center;
             gap: 8px;
@@ -765,6 +775,7 @@
 
         details.card>summary:hover {
             color: var(--text);
+            background: var(--bg-btn-hover);
         }
 
         details.card[open]>summary {
@@ -824,12 +835,17 @@
         .md-render h3 {
             font-size: var(--fs-code);
             color: var(--accent-2);
+            font-weight: 700;
         }
 
         .md-render h3::before {
             content: "### ";
             color: var(--text-faint);
             font-weight: 400;
+        }
+
+        .md-render h3 code {
+            font-weight: 700;
         }
 
         .md-render h4 {
@@ -884,6 +900,12 @@
             background: none;
             padding: 0;
             color: var(--text);
+        }
+
+        .md-render hr {
+            border: 0;
+            border-top: 1px solid var(--border);
+            margin: 12px 0;
         }
 
         .md-render table {
@@ -1020,7 +1042,7 @@
         <div class="hero">
             <div class="hero-brand">
                 <div class="hero-name">genby<span class="lang">lang</span></div>
-                <div class="hero-version">v1.1</div>
+                <div class="hero-version">v1.1.3</div>
                 <button class="install-btn" id="installBtn" type="button" title="click to copy">
                     <span class="install-prompt">$</span>
                     <span class="install-cmd">npm i genby</span>
