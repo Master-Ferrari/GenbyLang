@@ -1038,13 +1038,13 @@
                 <span class="hl"> <span style="font-size: 16px;">//</span> genby</span> is a js-executed language built to stay fully
                 customizable , typed , and non-programmer friendly<br>
             </p>
-            <p class="hero-desc" style="margin-top: 16px;">.. its .. like lua , but yet simpler<br>
+            <p class="hero-desc" style="margin-top: 16px;">.. it's .. like lua , but yet simpler<br>
             </p>
             <p class="hero-desc" style="margin-top: 16px;">
                 <span class="hl">genby</span> strips syntax down to the minimum by treating <span class="hl">everything as a
                 function</span> , so instead of block-heavy structures it leans on nested calls like
                 <code>a = b ( c ( d ) e ( ) , f )</code><br>
-                and by default there are only one function - RETURN . so you may configure lang from floor <br> 
+                and by default there is only one function - RETURN . so you may configure lang from scratch <br> 
                 the whole system is packaged as a single class where you define your own
                 api , including control flow such as <span class="hl">loops</span> and <span class="hl">branching</span> ,
                 and that same class can also export an input field with <span class="hl">highlighting</span> and completions plus
@@ -1062,8 +1062,7 @@
         <section class="step">
             <div class="step-title">1. config your api</div>
             <div class="step-desc">
-                declare functions, variables, enums, and directives on a <span class="hl" style="color: var(--accent);">genby</span> instance.
-                return the instance at the end.
+                declare functions, variables, enums, and directives on a <span class="hl" style="color: var(--accent);">genby</span> instance
             </div>
 
             <div class="example-row">
@@ -1098,7 +1097,7 @@
         <section class="step">
             <div class="step-title">2. generate docs</div>
             <div class="step-desc">
-                a full markdown reference is produced from your language config via <code>machine.docs()</code>.
+                generate markdown reference of your config via <code>machine.docs()</code>
             </div>
 
             <details class="card" id="docsCard">
@@ -1115,8 +1114,8 @@
         <section class="step">
             <div class="step-title">3. make genby program</div>
             <div class="step-desc">
-                write a program in the language you just declared. syntax highlighting and completions come from
-                <code>machine.inputDom()</code>.
+                write a program in the lang you just defined . syntax highlighting and completions are from
+                <code>machine.inputDom()</code>
             </div>
 
             <details class="card" id="programCard" open>
@@ -1140,7 +1139,7 @@
         <section class="step">
             <div class="step-title">4. run genby</div>
             <div class="step-desc">
-                executes the program against your configured handlers. the return value is rendered below.
+                runs your program via <span class="hl" style="color: var(--accent);">machine.execute()</span> . the result shows up below
             </div>
 
             <div class="btn-row">
