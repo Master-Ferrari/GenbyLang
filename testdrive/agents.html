@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>genby · language reference</title>
+    <meta name="description"
+        content="Genby: TypeScript API, script syntax, and ten tutorial examples (config + program) as a single page." />
+    <meta name="robots" content="index, follow" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=PT+Mono&display=swap" rel="stylesheet">
+    <style>
+        /* Same design tokens and markdown surface as testdrive/index.html */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        :root {
+            color-scheme: dark;
+            --border-radius: 3px;
+            --bg-app: #0b0c0e;
+            --bg-panel: #111216;
+            --bg-chrome: #12141a;
+            --bg-btn: #12141a;
+            --bg-btn-hover: #1b1e28;
+            --bg-popup-selected: #1e2230;
+            --bg-pre: #08090c;
+            --border: #272a30;
+            --border-in: #2b2f36;
+            --border-pre: #222529;
+            --accent: #e33183;
+            --accent-2: #8f67aa;
+            --accent-3: #00a09a;
+            --accent-3-a08: rgba(0, 160, 154, 0.08);
+            --accent-3-a30: rgba(0, 160, 154, 0.3);
+            --text: #e5e7eb;
+            --text-soft: #c8cdd5;
+            --text-muted: #9aa3af;
+            --text-dim: #6b7280;
+            --text-faint: #4b5563;
+            --text-white: #ffffff;
+            --scroll-thumb: #656b76;
+            --scroll-thumb-hover: #7a818d;
+            --scroll-track: #111316;
+            --fs-hero: 42px;
+            --fs-h1: 16px;
+            --fs-body: 14px;
+            --fs-code: 13px;
+            --fs-sm: 12px;
+            --fs-xs: 11px;
+            --fs-xxs: 10px;
+            --lh-tight: 14px;
+            --lh-code: 20px;
+            --lh-body: 21px;
+            --ls-tight: -1px;
+            --ls-meta: 0.5px;
+            --ls-wider: 1.2px;
+            --page-max: 800px;
+        }
+
+        html {
+            background: var(--bg-app);
+            scrollbar-width: thin;
+            scrollbar-color: var(--scroll-thumb) var(--bg-app);
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--bg-app);
+            color: var(--text);
+            font-size: var(--fs-body);
+            font-family: "PT Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+            line-height: var(--lh-body);
+            padding: 32px 20px 40px;
+            user-select: text;
+        }
+
+        .agents-nav {
+            max-width: var(--page-max);
+            margin: 0 auto 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .agents-nav a,
+        .agents-nav .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border: 1px solid var(--border-in);
+            border-radius: var(--border-radius);
+            background: var(--bg-btn);
+            color: var(--text);
+            font-family: inherit;
+            font-size: var(--fs-sm);
+            line-height: var(--lh-tight);
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .agents-nav a:hover,
+        .agents-nav .btn:hover {
+            border-color: var(--border-in);
+            background: var(--bg-btn-hover);
+        }
+
+        .agents-nav .btn:active,
+        .agents-nav a:active {
+            filter: brightness(0.95);
+        }
+
+        .agents-nav .right {
+            display: flex;
+            gap: 8px;
+        }
+
+        .agents-shell {
+            max-width: var(--page-max);
+            margin: 0 auto;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
+        /* Match reference.md in index.html (`.md-render`), not the fixed 320px height. */
+        .md-render.agents-article {
+            height: auto;
+            min-height: 0;
+            overflow: visible;
+        }
+
+        .md-render {
+            padding: 14px 18px 18px;
+            font-size: var(--fs-code);
+            line-height: var(--lh-body);
+            color: var(--text-soft);
+        }
+
+        .md-render> :first-child {
+            margin-top: 0;
+        }
+
+        .md-render h1,
+        .md-render h2,
+        .md-render h3,
+        .md-render h4 {
+            font-weight: 600;
+            color: var(--text);
+            margin: 16px 0 6px;
+        }
+
+        .md-render h1 {
+            font-size: var(--fs-h1);
+            color: var(--accent);
+            margin-top: 0;
+        }
+
+        .md-render h1::before {
+            content: "# ";
+            color: var(--text-faint);
+            font-weight: 400;
+        }
+
+        .md-render h2 {
+            font-size: var(--fs-body);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 4px;
+            margin-top: 18px;
+        }
+
+        .md-render h2::before {
+            content: "## ";
+            color: var(--text-faint);
+            font-weight: 400;
+        }
+
+        .md-render h3 {
+            font-size: var(--fs-code);
+            color: var(--accent-2);
+            font-weight: 700;
+        }
+
+        .md-render h3::before {
+            content: "### ";
+            color: var(--text-faint);
+            font-weight: 400;
+        }
+
+        .md-render h3 code {
+            font-weight: 700;
+        }
+
+        .md-render h4 {
+            font-size: var(--fs-sm);
+            color: var(--text-muted);
+        }
+
+        .md-render p {
+            margin: 6px 0;
+        }
+
+        .md-render ul {
+            margin: 6px 0 6px 4px;
+            padding-left: 0;
+            list-style: none;
+        }
+
+        .md-render li {
+            margin: 3px 0;
+            padding-left: 16px;
+            position: relative;
+        }
+
+        .md-render li::before {
+            content: "·";
+            position: absolute;
+            left: 4px;
+            color: var(--accent);
+        }
+
+        .md-render code {
+            color: var(--accent-3);
+            background: var(--accent-3-a08);
+            padding: 0 5px;
+            border-radius: var(--border-radius);
+            font-size: var(--fs-sm);
+        }
+
+        .md-render pre {
+            background: var(--bg-pre);
+            border: 1px solid var(--border-pre);
+            border-radius: 4px;
+            padding: 10px 12px;
+            overflow: auto;
+            margin: 8px 0;
+            color: var(--text);
+            scrollbar-width: thin;
+            scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+        }
+
+        .md-render pre code {
+            background: none;
+            padding: 0;
+            color: var(--text);
+        }
+
+        .md-render hr {
+            border: 0;
+            border-top: 1px solid var(--border);
+            margin: 12px 0;
+        }
+
+        .md-render table {
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: var(--fs-sm);
+            width: 100%;
+        }
+
+        .md-render th,
+        .md-render td {
+            border: 1px solid var(--border-in);
+            padding: 5px 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .md-render th {
+            background: var(--bg-chrome);
+            color: var(--accent);
+            font-weight: 600;
+            letter-spacing: var(--ls-meta);
+        }
+
+        .md-render strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .md-render em {
+            color: var(--accent-2);
+            font-style: normal;
+        }
+
+        .md-render a {
+            color: var(--accent-3);
+            text-decoration: none;
+            border-bottom: 1px dashed var(--accent-3);
+        }
+
+        .md-render a:hover {
+            border-bottom-style: solid;
+        }
+
+        .md-render::-webkit-scrollbar,
+        #raw::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        .md-render::-webkit-scrollbar-track,
+        #raw::-webkit-scrollbar-track {
+            background: var(--scroll-track);
+            border-radius: var(--border-radius);
+        }
+
+        .md-render::-webkit-scrollbar-thumb,
+        #raw::-webkit-scrollbar-thumb {
+            background: var(--scroll-thumb);
+            border-radius: var(--border-radius);
+            border: 2px solid var(--scroll-track);
+        }
+
+        .md-render::-webkit-scrollbar-thumb:hover,
+        #raw::-webkit-scrollbar-thumb:hover {
+            background: var(--scroll-thumb-hover);
+        }
+
+        .md-render::-webkit-scrollbar-corner,
+        #raw::-webkit-scrollbar-corner {
+            background: var(--scroll-track);
+        }
+
+        #raw {
+            max-width: var(--page-max);
+            margin: 0 auto;
+            padding: 14px 18px 18px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: var(--text-soft);
+            font-size: var(--fs-code);
+            line-height: var(--lh-body);
+            font-family: "PT Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+        }
+
+        .loading {
+            color: var(--text-dim);
+            text-align: center;
+            padding: 40px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="agents-nav">
+        <a href="./index.html">&larr; back to testdrive</a>
+        <div class="right">
+            <button class="btn" id="copyBtn" type="button" title="copy the whole page as markdown">copy markdown</button>
+            <button class="btn" id="rawBtn" type="button" title="switch to rendered HTML">view rendered</button>
+        </div>
+    </nav>
+    <main class="agents-shell" hidden>
+        <article id="article" class="md-render agents-article">
+            <div class="loading">composing reference…</div>
+        </article>
+    </main>
+    <pre id="raw">composing reference…</pre>
+
+    <script type="module">
+        import { Genby } from '../dist/index.js';
+        import { EXAMPLES } from './examples.js';
+        import { renderMarkdown } from './md.js';
+
+        // ------------------------------------------------------------------
+        // live borrow #1 — the testdrive hero block
+        // ------------------------------------------------------------------
+        // We fetch index.html as text, parse it into a document, and extract
+        // the `.hero` subtree. Nothing is duplicated: whenever the hero copy
+        // changes in index.html, this page picks it up on the next load.
+        // ------------------------------------------------------------------
+
+        async function fetchText(url) {
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`${url}: ${res.status}`);
+            return res.text();
+        }
+
+        function normalizeInline(s) {
+            return s
+                .replace(/\s+/g, ' ')
+                .replace(/\s+([.,;:!?])/g, '$1')
+                .trim();
+        }
+
+        function nodeToInlineMd(node) {
+            let out = '';
+            node.childNodes.forEach((child) => {
+                if (child.nodeType === 3) {
+                    out += child.nodeValue;
+                    return;
+                }
+                if (child.nodeType !== 1) return;
+                const tag = child.tagName.toLowerCase();
+                if (tag === 'br') {
+                    out += ' ';
+                } else if (tag === 'code') {
+                    out += '`' + normalizeInline(child.textContent) + '`';
+                } else if (tag === 'a') {
+                    const href = child.getAttribute('href') ?? '';
+                    const label = normalizeInline(child.textContent) || href;
+                    out += `[${label}](${href})`;
+                } else if (tag === 'hr') {
+                    out += ' ';
+                } else {
+                    out += nodeToInlineMd(child);
+                }
+            });
+            return out;
+        }
+
+        function heroToMarkdown(doc) {
+            const hero = doc.querySelector('.hero');
+            if (!hero) return '';
+            const nameEl = hero.querySelector('.hero-name');
+            const version = hero.querySelector('.hero-version')?.textContent?.trim() ?? '';
+            const metaText = normalizeInline(
+                hero.querySelector('.hero-meta')?.textContent ?? '',
+            );
+            // The hero name is `genby<span class="lang">lang</span>`; flatten it.
+            const name = normalizeInline(nameEl?.textContent ?? 'genby');
+
+            const descs = [...hero.querySelectorAll('.hero-desc:not(.hero-desc--testdrive-only)')]
+                .map((p) => normalizeInline(nodeToInlineMd(p)))
+                .filter(Boolean);
+
+            const parts = [];
+            parts.push(`# ${name}${version ? ` · ${version}` : ''}`);
+            if (metaText) parts.push(`_${metaText}_`);
+            for (const d of descs) parts.push(d);
+            return parts.join('\n\n');
+        }
+
+        // ------------------------------------------------------------------
+        // live borrow #2 — the generic syntax reference
+        // ------------------------------------------------------------------
+        // `machine.docs()` on a bare Genby renders the `## Syntax reference`
+        // block (and nothing else, since there are no fns/vars/etc to list).
+        // We slice that section out and inline it, so that whenever the
+        // syntax docs change in src/docs.ts, this page reflects the change.
+        // ------------------------------------------------------------------
+
+        function extractSyntaxSection(md) {
+            const needle = '## Syntax reference';
+            const idx = md.indexOf(needle);
+            return idx < 0 ? md.trim() : md.slice(idx).trim();
+        }
+
+        function renderSyntaxReference() {
+            const machine = new Genby().build();
+            return extractSyntaxSection(machine.docs());
+        }
+
+        // ------------------------------------------------------------------
+        // live borrow #3 — the ten walkthrough examples
+        // ------------------------------------------------------------------
+        // EXAMPLES is the single source of truth for the dropdown in the
+        // testdrive. We render each entry as a markdown section with the
+        // config and program snippets wrapped in fenced code blocks.
+        // ------------------------------------------------------------------
+
+        function examplesToMarkdown(list) {
+            const parts = [
+                '## Walkthrough — ten examples',
+                '',
+                'Each step is a host `config` (builds a `Genby` / `LangMachine`) and a `program` to `execute`, in increasing complexity.',
+            ];
+            for (const ex of list) {
+                parts.push('');
+                parts.push(`### ${ex.label}`);
+                parts.push('');
+                parts.push('**config.js**');
+                parts.push('');
+                parts.push('```ts');
+                parts.push(ex.config.trimEnd());
+                parts.push('```');
+                parts.push('');
+                parts.push('**program**');
+                parts.push('');
+                parts.push('```');
+                parts.push(ex.program.trimEnd());
+                parts.push('```');
+            }
+            return parts.join('\n');
+        }
+
+        // ------------------------------------------------------------------
+        // compose the single markdown document
+        // ------------------------------------------------------------------
+
+        async function compose() {
+            const [indexHtml, specMd] = await Promise.all([
+                fetchText('./index.html'),
+                fetchText('./spec.en.md'),
+            ]);
+            const doc = new DOMParser().parseFromString(indexHtml, 'text/html');
+
+            const heroMd = heroToMarkdown(doc);
+
+            const syntaxMd = renderSyntaxReference();
+            const examplesMd = examplesToMarkdown(EXAMPLES);
+
+            return [heroMd, specMd.trim(), syntaxMd, examplesMd]
+                .filter(Boolean)
+                .join('\n\n');
+        }
+
+        // ------------------------------------------------------------------
+        // render + UI
+        // ------------------------------------------------------------------
+
+        const article = document.getElementById('article');
+        const rawPre = document.getElementById('raw');
+        const copyBtn = document.getElementById('copyBtn');
+        const rawBtn = document.getElementById('rawBtn');
+
+        let fullMarkdown = '';
+        /** `true` = raw markdown visible (default). */
+        let rawVisible = true;
+
+        function applyRawState() {
+            if (rawVisible) {
+                article.parentElement.hidden = true;
+                rawPre.hidden = false;
+                rawBtn.textContent = 'view rendered';
+                rawBtn.title = 'switch to rendered HTML';
+            } else {
+                article.parentElement.hidden = false;
+                rawPre.hidden = true;
+                rawBtn.textContent = 'view raw';
+                rawBtn.title = 'switch to raw markdown';
+            }
+        }
+
+        applyRawState();
+
+        rawBtn.addEventListener('click', () => {
+            rawVisible = !rawVisible;
+            applyRawState();
+        });
+
+        let copyResetTimer = 0;
+        copyBtn.addEventListener('click', async () => {
+            if (!fullMarkdown) return;
+            try {
+                await navigator.clipboard.writeText(fullMarkdown);
+            } catch {
+                const ta = document.createElement('textarea');
+                ta.value = fullMarkdown;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); } catch { }
+                document.body.removeChild(ta);
+            }
+            copyBtn.textContent = 'copied';
+            clearTimeout(copyResetTimer);
+            copyResetTimer = setTimeout(() => {
+                copyBtn.textContent = 'copy markdown';
+            }, 1500);
+        });
+
+        (async () => {
+            try {
+                fullMarkdown = await compose();
+                article.innerHTML = renderMarkdown(fullMarkdown);
+                rawPre.textContent = fullMarkdown;
+                document.title = 'genby · language reference';
+            } catch (err) {
+                rawVisible = false;
+                applyRawState();
+                article.innerHTML = `<p><strong>failed to compose page:</strong> ${String(err?.message ?? err)}</p>`;
+            }
+        })();
+    </script>
+</body>
+
+</html>

@@ -136,8 +136,15 @@
             line-height: var(--lh-tight);
         }
 
-        .install-btn {
+        .install-stack {
             margin-left: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .install-btn {
             display: inline-flex;
             align-items: center;
             gap: 10px;
@@ -150,7 +157,7 @@
             font-family: inherit;
             font-size: var(--fs-sm);
             line-height: var(--lh-tight);
-            transform: translate(2px, 16px);
+            transform: translate(0px, 31px);
         }
 
         .install-btn:hover {
@@ -1043,11 +1050,13 @@
             <div class="hero-brand">
                 <div class="hero-name">genby<span class="lang">lang</span></div>
                 <div class="hero-version">v1.1.5</div>
-                <button class="install-btn" id="installBtn" type="button" title="click to copy">
-                    <span class="install-prompt">$</span>
-                    <span class="install-cmd">npm i genby</span>
-                    <span class="install-label" id="installLabel">copy</span>
-                </button>
+                <div class="install-stack">
+                    <button class="install-btn" id="installBtn" type="button" title="click to copy">
+                        <span class="install-prompt">$</span>
+                        <span class="install-cmd">npm i genby</span>
+                        <span class="install-label" id="installLabel">copy</span>
+                    </button>
+                </div>
             </div>
             <!-- <div class="hero-tagline">
                 <span class="c">//</span> embeddable TS mini-DSL for custom APIs <span class="c">
@@ -1074,11 +1083,14 @@
                 and that same class can also export an input field with <span class="hl">highlighting</span> and completions plus
                 auto-generated <span class="hl">markdown docs</span>
             </p>
-            <p class="hero-desc" style="margin-top: 16px;">
+            <p class="hero-desc hero-desc--testdrive-only" style="margin-top: 16px;">
                 the page below is a sort of walkthrough , you can see the
                 smallest possible use of the library at
                 <a href="./minimal.html"
                     style="color: var(--accent-3); text-decoration: none; border-bottom: 1px dashed var(--accent-3);">minimal.html</a>
+                and beep-boop docs at
+                <a href="./agents.html" title="language and API reference (markdown)"
+                    style="color: var(--accent-3); text-decoration: none; border-bottom: 1px dashed var(--accent-3);">agents.html</a>
             </p>
         </div>
 
